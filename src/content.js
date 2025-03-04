@@ -1,11 +1,8 @@
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "getText") {
-      const paragraphs = Array.from(document.getElementsByTagName("p"));
-      const longParagraphs = paragraphs
-        .filter(p => p.textContent.trim().length > 100)
-        .map(p => p.textContent.trim());
-  
-      sendResponse({ paragraphs: longParagraphs });
-    }
-  });
-  
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "getParagraphs") {
+      const paragraphs = Array.from(document.getElementsByTagName("p"))
+          .map(p => p.innerText.trim())
+          .filter(text => text.length > 0);
+      sendResponse({ paragraphs });
+  }
+});
