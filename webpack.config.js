@@ -21,7 +21,7 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: "./src/popup.html", // ✅ Ensures popup.html is included in dist/
+      template: "./src/popup.html", //in dist
       filename: "popup.html",
     }),
   ],
