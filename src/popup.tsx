@@ -6,36 +6,42 @@ function Popup() {
     const [error, setError] = useState<string | null>(null);
 
     const handleClick = () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs.length === 0) {
-              setError("No active tab found");
-              return;
-          }
-  
-          // Inject content script dynamically before sending message
-          chrome.scripting.executeScript(
-              {
-                  target: { tabId: tabs[0].id },
-                  files: ["content.js"],
-              },
-              () => {
-                  if (chrome.runtime.lastError) {
-                      setError(chrome.runtime.lastError.message);
-                      return;
-                  }
-  
-                  // Now send message to content script
-                  chrome.tabs.sendMessage(tabs[0].id!, { action: "getParagraphs" }, (response) => {
-                      if (chrome.runtime.lastError) {
-                          setError(chrome.runtime.lastError.message);
-                          return;
-                      }
-                      setParagraphs(response.paragraphs || []);
-                  });
-              }
-          );
-      });
-  };  
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length === 0) {
+                setError("No active tab found");
+                return;
+            }
+
+            const tabId = tabs[0].id;
+            if (typeof tabId !== 'number') {
+                setError("No valid tab ID found");
+                return;
+            }
+
+            // Inject content script dynamically before sending message
+            chrome.scripting.executeScript(
+                {
+                    target: { tabId },
+                    files: ["content.js"],
+                },
+                () => {
+                    if (chrome.runtime.lastError) {
+                        setError(chrome.runtime.lastError.message || "An unknown error occurred");
+                        return;
+                    }
+
+                    // Now send message to content script
+                    chrome.tabs.sendMessage(tabId, { action: "getParagraphs" }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            setError(chrome.runtime.lastError.message || "An unknown error occurred");
+                            return;
+                        }
+                        setParagraphs(response?.paragraphs || []);
+                    });
+                }
+            );
+        });
+    };
 
     return (
         <div className="p-4 w-96">
