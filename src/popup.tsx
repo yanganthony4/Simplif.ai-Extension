@@ -7,63 +7,42 @@ function Popup() {
     const [summary, setSummary] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    const grabParagraphs = () => {
+    const handleClick = () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs.length === 0) {
                 setError("No active tab found");
                 return;
             }
 
+            const tabId = tabs[0].id;
+            if (typeof tabId !== 'number') {
+                setError("No valid tab ID found");
+                return;
+            }
+
             // Inject content script dynamically before sending message
             chrome.scripting.executeScript(
                 {
-                    target: { tabId: tabs[0].id },
+                    target: { tabId },
                     files: ["content.js"],
                 },
                 () => {
                     if (chrome.runtime.lastError) {
-                        setError(chrome.runtime.lastError.message);
+                        setError(chrome.runtime.lastError.message || "An unknown error occurred");
                         return;
                     }
 
                     // Now send message to content script
-                    chrome.tabs.sendMessage(tabs[0].id!, { action: "getParagraphs" }, (response) => {
+                    chrome.tabs.sendMessage(tabId, { action: "getParagraphs" }, (response) => {
                         if (chrome.runtime.lastError) {
-                            setError(chrome.runtime.lastError.message);
+                            setError(chrome.runtime.lastError.message || "An unknown error occurred");
                             return;
                         }
-                        setParagraphs(response.paragraphs || []);
+                        setParagraphs(response?.paragraphs || []);
                     });
                 }
             );
         });
-    };
-
-    const summarizeText = async () => {
-        const text = paragraphs.join("\n");
-        if (!text) {
-            setError("No paragraphs to summarize");
-            return;
-        }
-
-        try {
-            const response = await axios.post(
-                "https://api.openai.com/v1/chat/completions",
-                {
-                    model: "gpt-4.o mini",
-                    messages: [{ role: "user", content: `Summarize the following text: ${text}` }],
-                },
-                {
-                    headers: {
-                        "Authorization": `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`, // Replace with your actual API key
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-            setSummary(response.data.choices[0].message.content);
-        } catch (error) {
-            setError("Failed to summarize text");
-        }
     };
 
     return (
