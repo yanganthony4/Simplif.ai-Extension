@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import axios from "axios";
 
+//api key
 const API_KEY = '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'
 
 function Popup() {
@@ -50,13 +51,13 @@ function Popup() {
         });
     };
     const summarizeText = async () => {
-        if (isSummarizing) return; // Prevent multiple clicks
-        setIsSummarizing(true);//disable during api call
+        if (isSummarizing) return; // prevent multiple clicks
+        setIsSummarizing(true);// disable during api call
 
         const text = paragraphs.join("\n");
         if (!text) {
             setError("No paragraphs to summarize");
-            setIsSummarizing(false); // Re-enable the button
+            setIsSummarizing(false); // re-enable the button
             return;
         }
 
@@ -81,7 +82,7 @@ function Popup() {
         } catch (error) {
             setError("Failed to summarize text");
         } finally {
-            setIsSummarizing(false); // Re-enable the button
+            setIsSummarizing(false); // re-enable the button
         }
         
     };
@@ -98,8 +99,9 @@ function Popup() {
             className="bg-green-500 text-white p-2 rounded mb-4"
             disabled={isSummarizing} //disable buttonn while summariign
             >
-            {isSummarizing ? "Summarizing..." : "Summarize Text"}
-            </button>
+            {isSummarizing ? "Summarizing..." : "Summarize Text"// state to of button
+            }
+            </button> 
             {error && <p className="text-red-500">{error}</p>}
             {paragraphs.length > 0 && ( // Display original paragraphs if they exist
                 <ul className="mb-4">
@@ -108,7 +110,7 @@ function Popup() {
                     ))}
                 </ul>
             )}
-            {summary && ( // Display the summary if it exists
+            {summary && ( // display the summary if it exists
                 <div className="mt-4">
                     <h2 className="text-xl font-bold">Summary</h2>
                     <p>{summary}</p>
@@ -117,7 +119,7 @@ function Popup() {
         </div>
     );
 }
-
+//uploading to google extensions
 const rootElement = document.getElementById("root");
 if (rootElement) {
     createRoot(rootElement).render(<Popup />);
