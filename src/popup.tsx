@@ -4,14 +4,29 @@ import axios from "axios";
 
 //api key
 const API_KEY = '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'
+const DEEPL_API_KEY = 'bc917a54-fb21-4706-9b99-87d15c3600db:fx';
+//languages
+const languages = [
+    { code: "EN", name: "English" },
+    { code: "FR", name: "French" },
+    { code: "ES", name: "Spanish" },
+    { code: "JA", name: "Japanese" },
+    { code: "ZH", name: "Chinese" },
+    { code: "DE", name: "German" },
+    { code: "IT", name: "Italian" },
+];
 
 function Popup() {
     const [paragraphs, setParagraphs] = useState<string[]>([]);
     const [summary, setSummary] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
+    const [isTranslating, setIsTranslating] = useState<boolean>(false);
     const [readingLevel, setReadingLevel] = useState<number>(2); // Default to General
 
+    const [targetLanguage, setTargetLanguage] = useState<string>("EN"); // Default to English
+    const [translatedText, setTranslatedText] = useState<string | null>(null);
+    
     const grabParagraphs = () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (tabs.length === 0) {
@@ -46,6 +61,7 @@ function Popup() {
                         console.log("Fetched Paragraphs:", response?.paragraphs); // Log the fetched paragraphs in console
                         setParagraphs(response?.paragraphs || []);
                         setSummary(null); //clear the summary when new paragraph is fetched
+                        setTranslatedText(null); //clear translated text
                     });
                 }
             );
@@ -87,7 +103,8 @@ function Popup() {
             setSummary(response.data.choices[0].message.content);//setting the summary
             
             setParagraphs([]);//clear the grabbed paragraphs
-            
+            setTranslatedText(null); // Clear the translated text
+
             console.log("Summary State Updated:", response.data.choices[0].message.content);//log to verify text update
             console.log("Summary:", response.data.choices[0].message.content);//log summarized content
         
@@ -97,6 +114,32 @@ function Popup() {
             setIsSummarizing(false); // re-enable the button
         }
         
+    };
+const translateText = async () => {
+        if (!summary || isTranslating) return; // Prevent translation if no summary or already translating
+        setIsTranslating(true); // Disable the button during API call
+
+        try {
+            const response = await axios.post(
+                "https://api-free.deepl.com/v2/translate",
+                {
+                    text: [summary],
+                    target_lang: targetLanguage,
+                },
+                {
+                    headers: {
+                        "Authorization": `DeepL-Auth-Key ${DEEPL_API_KEY}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            setTranslatedText(response.data.translations[0].text); // Set the translated text
+            console.log("Translated Text:", response.data.translations[0].text); // Log the translated text
+        } catch (error) {
+            setError("Failed to translate text");
+        } finally {
+            setIsTranslating(false); // Re-enable the button
+        }
     };
 
     return (
@@ -134,6 +177,27 @@ function Popup() {
             {isSummarizing ? "Summarizing..." : "Summarize Text"// state to of button
             }
             </button> 
+            <div className="mb-4">
+                <label htmlFor="language" className="block text-sm font-medium text-gray-700">
+                    Translate To
+                </label>
+                <select
+                    id="language"
+                    name="language"
+                    value={targetLanguage}
+                    onChange={(e) => setTargetLanguage(e.target.value)}
+                    className="w-full p-2 border rounded"
+                >
+                    {languages.map((lang) => (
+                        <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <button onClick={translateText} className="bg-purple-500 text-white p-2 rounded mb-4" disabled={!summary || isTranslating}>
+                {isTranslating ? "Translating..." : "Translate"}
+            </button>
             {error && <p className="text-red-500">{error}</p>}
             {paragraphs.length > 0 && ( // Display original paragraphs if they exist
                 <ul className="mb-4">
@@ -146,6 +210,12 @@ function Popup() {
                 <div className="mt-4">
                     <h2 className="text-xl font-bold">Summary</h2>
                     <p>{summary}</p>
+                </div>
+            )}
+             {translatedText && ( // Display the translated text if it exists
+                <div className="mt-4">
+                    <h2 className="text-xl font-bold">Translated Summary</h2>
+                    <p>{translatedText}</p>
                 </div>
             )}
         </div>
