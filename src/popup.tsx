@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import axios from "axios";
 
-//api key
-const API_KEY = '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'
+// API Keys
+const API_KEY = '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';
 const DEEPL_API_KEY = 'bc917a54-fb21-4706-9b99-87d15c3600db:fx';
-//languages
+
+// Languages
 const languages = [
     { code: "EN", name: "English" },
     { code: "FR", name: "French" },
@@ -17,76 +18,79 @@ const languages = [
 ];
 
 function Popup() {
-    const [paragraphs, setParagraphs] = useState<string[]>([]);
     const [summary, setSummary] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
     const [isTranslating, setIsTranslating] = useState<boolean>(false);
-    const [readingLevel, setReadingLevel] = useState<number>(2); // Default to General
+    const [readingLevel, setReadingLevel] = useState<number>(2);
+    const [targetLanguage, setTargetLanguage] = useState<string>("EN");
 
-    const [targetLanguage, setTargetLanguage] = useState<string>("EN"); // Default to English
-    const [translatedText, setTranslatedText] = useState<string | null>(null);
-    
-    const grabParagraphs = () => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs.length === 0) {
-                setError("No active tab found");
-                return;
-            }
+    // Function to grab paragraphs from the active tab
+    const fetchParagraphs = async (): Promise<string[] | null> => {
+        return new Promise((resolve, reject) => {
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                if (tabs.length === 0) {
+                    reject("No active tab found");
+                    return;
+                }
 
-            const tabId = tabs[0].id;
-            if (typeof tabId !== 'number') {
-                setError("No valid tab ID found");
-                return;
-            }
+                const tabId = tabs[0].id;
+                if (typeof tabId !== 'number') {
+                    reject("No valid tab ID found");
+                    return;
+                }
 
-            // Inject content script dynamically before sending message
-            chrome.scripting.executeScript(
-                {
-                    target: { tabId },
-                    files: ["src/content.js"],
-                },
-                () => {
-                    if (chrome.runtime.lastError) {
-                        setError(chrome.runtime.lastError.message || "An unknown error occurred");
-                        return;
-                    }
-
-                    // Now send message to content script
-                    chrome.tabs.sendMessage(tabId, { action: "getParagraphs" }, (response) => {
+                // Inject content script dynamically before sending message
+                chrome.scripting.executeScript(
+                    {
+                        target: { tabId },
+                        files: ["src/content.js"],
+                    },
+                    () => {
                         if (chrome.runtime.lastError) {
-                            setError(chrome.runtime.lastError.message || "An unknown error occurred");
+                            reject(chrome.runtime.lastError.message || "An unknown error occurred");
                             return;
                         }
-                        console.log("Fetched Paragraphs:", response?.paragraphs); // Log the fetched paragraphs in console
-                        setParagraphs(response?.paragraphs || []);
-                        setSummary(null); //clear the summary when new paragraph is fetched
-                        setTranslatedText(null); //clear translated text
-                    });
-                }
-            );
+
+                        chrome.tabs.sendMessage(tabId, { action: "getParagraphs" }, (response) => {
+                            if (chrome.runtime.lastError) {
+                                reject(chrome.runtime.lastError.message || "An unknown error occurred");
+                                return;
+                            }
+
+                            resolve(response?.paragraphs || []);
+                        });
+                    }
+                );
+            });
         });
     };
+
+    // Summarize Text
     const summarizeText = async () => {
-        if (isSummarizing) return; // prevent multiple clicks
-        setIsSummarizing(true);// disable during api call
-
-        const text = paragraphs.join("\n");
-        if (!text) {
-            setError("No paragraphs to summarize");
-            setIsSummarizing(false); // re-enable the button
-            return;
-        }
-
-        const prompts = [
-            "Summarize the following text for a 4th-grade reading level, while still maintaining the integrity and nuance: ${text}", // Grade 4
-            "Summarize the following text in simple terms, while still maintaining the integrity and nuance: ${text}", // General/Easy
-            "Summarize the following text for an academic audience, while still maintaining the integrity and nuance: ${text}", // Academic/Masters
-        ];
-
-        const prompt = prompts[readingLevel - 1].replace("${text}", text); // Replace ${text} with the actual text
+        if (isSummarizing) return;
+        setIsSummarizing(true);
+        setError(null);
+        setSummary(null);
 
         try {
+            const paragraphs = await fetchParagraphs();
+            if (!paragraphs || paragraphs.length === 0) {
+                setError("No paragraphs found to summarize");
+                setIsSummarizing(false);
+                return;
+            }
+
+            const text = paragraphs.join("\n");
+
+            const prompts = [
+                `Summarize the following text for a 4th-grade reading level, while still maintaining the integrity and nuance: ${text}`,
+                `Summarize the following text in simple terms, while still maintaining the integrity and nuance: ${text}`,
+                `Summarize the following text for an academic audience, while still maintaining the integrity and nuance: ${text}`,
+            ];
+
+            const prompt = prompts[readingLevel - 1];
+
             const response = await axios.post(
                 "https://api.openai.com/v1/chat/completions",
                 {
@@ -95,29 +99,26 @@ function Popup() {
                 },
                 {
                     headers: {
-                        "Authorization": `Bearer ${API_KEY}`, 
+                        Authorization: `Bearer ${API_KEY}`,
                         "Content-Type": "application/json",
                     },
                 }
             );
-            setSummary(response.data.choices[0].message.content);//setting the summary
-            
-            setParagraphs([]);//clear the grabbed paragraphs
-            setTranslatedText(null); // Clear the translated text
 
-            console.log("Summary State Updated:", response.data.choices[0].message.content);//log to verify text update
-            console.log("Summary:", response.data.choices[0].message.content);//log summarized content
-        
+            setSummary(response.data.choices[0].message.content);
+            console.log("Summary:", response.data.choices[0].message.content);
         } catch (error) {
             setError("Failed to summarize text");
         } finally {
-            setIsSummarizing(false); // re-enable the button
+            setIsSummarizing(false);
         }
-        
     };
-const translateText = async () => {
-        if (!summary || isTranslating) return; // Prevent translation if no summary or already translating
-        setIsTranslating(true); // Disable the button during API call
+
+    // Translate Text
+    const translateText = async () => {
+        if (!summary || isTranslating) return;
+        setIsTranslating(true);
+        setError(null);
 
         try {
             const response = await axios.post(
@@ -128,62 +129,53 @@ const translateText = async () => {
                 },
                 {
                     headers: {
-                        "Authorization": `DeepL-Auth-Key ${DEEPL_API_KEY}`,
+                        Authorization: `DeepL-Auth-Key ${DEEPL_API_KEY}`,
                         "Content-Type": "application/json",
                     },
                 }
             );
-            setTranslatedText(response.data.translations[0].text); // Set the translated text
-            console.log("Translated Text:", response.data.translations[0].text); // Log the translated text
+
+            // Replace summary with translated text
+            setSummary(response.data.translations[0].text);
+            console.log("Translated Text:", response.data.translations[0].text);
         } catch (error) {
             setError("Failed to translate text");
         } finally {
-            setIsTranslating(false); // Re-enable the button
+            setIsTranslating(false);
         }
     };
 
     return (
         <div className="p-4 w-96">
             <h1 className="text-2xl font-bold mb-4">Simplif.ai</h1>
-            <button onClick={grabParagraphs} 
-            className="bg-blue-500 text-white p-2 rounded mb-4"
-            >
-                Grab Paragraphs
-            </button>
+
+            {/* Reading Level */}
             <div className="mb-4">
-                <label htmlFor="readingLevel" className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700">
                     Reading Level
                 </label>
                 <input
                     type="range"
-                    id="readingLevel"
-                    name="readingLevel"
                     min="1"
                     max="3"
                     value={readingLevel}
                     onChange={(e) => setReadingLevel(Number(e.target.value))}
                     className="w-full"
                 />
-                <div className="flex justify-between text-sm text-gray-600">
-                    <span>Grade 4</span>
-                    <span>General/Easy</span>
-                    <span>Academic</span>
-                </div>
             </div>
-            <button onClick={summarizeText} 
-            className="bg-green-500 text-white p-2 rounded mb-4"
-            disabled={isSummarizing} //disable buttonn while summariign
+
+            {/* Summarize Button */}
+            <button
+                onClick={summarizeText}
+                className="bg-green-500 text-white p-2 rounded mb-4 w-full"
+                disabled={isSummarizing}
             >
-            {isSummarizing ? "Summarizing..." : "Summarize Text"// state to of button
-            }
-            </button> 
+                {isSummarizing ? "Summarizing..." : "Summarize"}
+            </button>
+
+            {/* Translation Dropdown */}
             <div className="mb-4">
-                <label htmlFor="language" className="block text-sm font-medium text-gray-700">
-                    Translate To
-                </label>
                 <select
-                    id="language"
-                    name="language"
                     value={targetLanguage}
                     onChange={(e) => setTargetLanguage(e.target.value)}
                     className="w-full p-2 border rounded"
@@ -195,33 +187,30 @@ const translateText = async () => {
                     ))}
                 </select>
             </div>
-            <button onClick={translateText} className="bg-purple-500 text-white p-2 rounded mb-4" disabled={!summary || isTranslating}>
+
+            {/* Translate Button */}
+            <button
+                onClick={translateText}
+                className={`bg-purple-500 text-white p-2 rounded w-full ${!summary ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={!summary || isTranslating}
+            >
                 {isTranslating ? "Translating..." : "Translate"}
             </button>
-            {error && <p className="text-red-500">{error}</p>}
-            {paragraphs.length > 0 && ( // Display original paragraphs if they exist
-                <ul className="mb-4">
-                    {paragraphs.map((para, index) => (
-                        <li key={index} className="mb-2">{para}</li>
-                    ))}
-                </ul>
-            )}
-            {summary && ( // display the summary if it exists
+
+            {/* Error Message */}
+            {error && <p className="text-red-500 mt-2">{error}</p>}
+
+            {/* Display Summary/Translation */}
+            {summary && (
                 <div className="mt-4">
-                    <h2 className="text-xl font-bold">Summary</h2>
+                    <h2 className="text-xl font-bold">Result</h2>
                     <p>{summary}</p>
-                </div>
-            )}
-             {translatedText && ( // Display the translated text if it exists
-                <div className="mt-4">
-                    <h2 className="text-xl font-bold">Translated Summary</h2>
-                    <p>{translatedText}</p>
                 </div>
             )}
         </div>
     );
 }
-//uploading to google extensions
+
 const rootElement = document.getElementById("root");
 if (rootElement) {
     createRoot(rootElement).render(<Popup />);
