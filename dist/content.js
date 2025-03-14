@@ -1,0 +1,1 @@
+chrome.runtime.onMessage.addListener(((e,a,r)=>{"getParagraphs"===e.action&&r({paragraphs:Array.from(document.getElementsByTagName("p")).map((e=>e.innerText.trim())).filter((e=>e.length>0))})}));

@@ -1,59 +1,123 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
+import axios from "axios";
+
+const API_KEY = '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'
 
 function Popup() {
     const [paragraphs, setParagraphs] = useState<string[]>([]);
+    const [summary, setSummary] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
 
-    const handleClick = () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (tabs.length === 0) {
-              setError("No active tab found");
-              return;
-          }
-  
-          // Inject content script dynamically before sending message
-          chrome.scripting.executeScript(
-              {
-                  target: { tabId: tabs[0].id },
-                  files: ["content.js"],
-              },
-              () => {
-                  if (chrome.runtime.lastError) {
-                      setError(chrome.runtime.lastError.message);
-                      return;
-                  }
-  
-                  // Now send message to content script
-                  chrome.tabs.sendMessage(tabs[0].id!, { action: "getParagraphs" }, (response) => {
-                      if (chrome.runtime.lastError) {
-                          setError(chrome.runtime.lastError.message);
-                          return;
-                      }
-                      setParagraphs(response.paragraphs || []);
-                  });
-              }
-          );
-      });
-  };  
+    const grabParagraphs = () => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs.length === 0) {
+                setError("No active tab found");
+                return;
+            }
+
+            const tabId = tabs[0].id;
+            if (typeof tabId !== 'number') {
+                setError("No valid tab ID found");
+                return;
+            }
+
+            // Inject content script dynamically before sending message
+            chrome.scripting.executeScript(
+                {
+                    target: { tabId },
+                    files: ["src/content.js"],
+                },
+                () => {
+                    if (chrome.runtime.lastError) {
+                        setError(chrome.runtime.lastError.message || "An unknown error occurred");
+                        return;
+                    }
+
+                    // Now send message to content script
+                    chrome.tabs.sendMessage(tabId, { action: "getParagraphs" }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            setError(chrome.runtime.lastError.message || "An unknown error occurred");
+                            return;
+                        }
+                        console.log("Fetched Paragraphs:", response?.paragraphs); // Log the fetched paragraphs in console
+                        setParagraphs(response?.paragraphs || []);
+                        setSummary(null); //clear the summary when new paragraph is fetched
+                    });
+                }
+            );
+        });
+    };
+    const summarizeText = async () => {
+        if (isSummarizing) return; // Prevent multiple clicks
+        setIsSummarizing(true);//disable during api call
+
+        const text = paragraphs.join("\n");
+        if (!text) {
+            setError("No paragraphs to summarize");
+            setIsSummarizing(false); // Re-enable the button
+            return;
+        }
+
+        try {
+            const response = await axios.post(
+                "https://api.openai.com/v1/chat/completions",
+                {
+                    model: "gpt-3.5-turbo",
+                    messages: [{ role: "user", content: `Summarize the following text: ${text}` }],
+                },
+                {
+                    headers: {
+                        "Authorization": `Bearer ${API_KEY}`, 
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+            setSummary(response.data.choices[0].message.content);//setting the summary
+            setParagraphs([]);//clear the grabbed paragraphs
+            console.log("Summary State Updated:", response.data.choices[0].message.content);//log to verify text update
+            console.log("Summary:", response.data.choices[0].message.content);//log summarized content
+        } catch (error) {
+            setError("Failed to summarize text");
+        } finally {
+            setIsSummarizing(false); // Re-enable the button
+        }
+        
+    };
 
     return (
         <div className="p-4 w-96">
             <h1 className="text-2xl font-bold mb-4">Simplif.ai</h1>
-            <button onClick={handleClick}>
+            <button onClick={grabParagraphs} 
+            className="bg-blue-500 text-white p-2 rounded mb-4"
+            >
                 Grab Paragraphs
             </button>
-            {error && <p>{error}</p>}
-            <ul>
-                {paragraphs.map((para, index) => (
-                    <li key={index}>{para}</li>
-                ))}
-            </ul>
+            <button onClick={summarizeText} 
+            className="bg-green-500 text-white p-2 rounded mb-4"
+            disabled={isSummarizing} //disable buttonn while summariign
+            >
+            {isSummarizing ? "Summarizing..." : "Summarize Text"}
+            </button>
+            {error && <p className="text-red-500">{error}</p>}
+            {paragraphs.length > 0 && ( // Display original paragraphs if they exist
+                <ul className="mb-4">
+                    {paragraphs.map((para, index) => (
+                        <li key={index} className="mb-2">{para}</li>
+                    ))}
+                </ul>
+            )}
+            {summary && ( // Display the summary if it exists
+                <div className="mt-4">
+                    <h2 className="text-xl font-bold">Summary</h2>
+                    <p>{summary}</p>
+                </div>
+            )}
         </div>
     );
 }
 
-// ✅ Correct way to mount React in Chrome extension
 const rootElement = document.getElementById("root");
 if (rootElement) {
     createRoot(rootElement).render(<Popup />);
