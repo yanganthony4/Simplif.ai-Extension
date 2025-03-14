@@ -10,6 +10,7 @@ function Popup() {
     const [summary, setSummary] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
+    const [readingLevel, setReadingLevel] = useState<number>(2); // Default to General
 
     const grabParagraphs = () => {
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -61,12 +62,20 @@ function Popup() {
             return;
         }
 
+        const prompts = [
+            "Summarize the following text for a 4th-grade reading level, while still maintaining the integrity and nuance: ${text}", // Grade 4
+            "Summarize the following text in simple terms, while still maintaining the integrity and nuance: ${text}", // General/Easy
+            "Summarize the following text for an academic audience, while still maintaining the integrity and nuance: ${text}", // Academic/Masters
+        ];
+
+        const prompt = prompts[readingLevel - 1].replace("${text}", text); // Replace ${text} with the actual text
+
         try {
             const response = await axios.post(
                 "https://api.openai.com/v1/chat/completions",
                 {
                     model: "gpt-3.5-turbo",
-                    messages: [{ role: "user", content: `Summarize the following text: ${text}` }],
+                    messages: [{ role: "user", content: prompt }],
                 },
                 {
                     headers: {
@@ -76,9 +85,12 @@ function Popup() {
                 }
             );
             setSummary(response.data.choices[0].message.content);//setting the summary
+            
             setParagraphs([]);//clear the grabbed paragraphs
+            
             console.log("Summary State Updated:", response.data.choices[0].message.content);//log to verify text update
             console.log("Summary:", response.data.choices[0].message.content);//log summarized content
+        
         } catch (error) {
             setError("Failed to summarize text");
         } finally {
@@ -95,6 +107,26 @@ function Popup() {
             >
                 Grab Paragraphs
             </button>
+            <div className="mb-4">
+                <label htmlFor="readingLevel" className="block text-sm font-medium text-gray-700">
+                    Reading Level
+                </label>
+                <input
+                    type="range"
+                    id="readingLevel"
+                    name="readingLevel"
+                    min="1"
+                    max="3"
+                    value={readingLevel}
+                    onChange={(e) => setReadingLevel(Number(e.target.value))}
+                    className="w-full"
+                />
+                <div className="flex justify-between text-sm text-gray-600">
+                    <span>Grade 4</span>
+                    <span>General/Easy</span>
+                    <span>Academic</span>
+                </div>
+            </div>
             <button onClick={summarizeText} 
             className="bg-green-500 text-white p-2 rounded mb-4"
             disabled={isSummarizing} //disable buttonn while summariign
