@@ -48,7 +48,7 @@ Follow these steps to install the extension manually:
 
 - Open `chrome://extensions/`
 - Enable **Developer mode**
-- Click **Load unpacked** and select the `dist/` folder
+- Click **Load unpacked** and select the folder
 
 ## **Option 2: Install from the Chrome Web Store**
 
