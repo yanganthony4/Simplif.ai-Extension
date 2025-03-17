@@ -1,22 +1,25 @@
 {
   "compilerOptions": {
-    "target": "ES6",
+    "target": "ESNext",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "strict": true,
-    "noEmit": false,  // ✅ ALLOW TypeScript to compile files
+    "noEmit": false,            // ✅ Allows TypeScript to compile
     "esModuleInterop": true,
     "module": "ESNext",
-    "moduleResolution": "node",  // ✅ Standard Webpack resolution
+    "moduleResolution": "node", // ✅ Standard Webpack/Vite resolution
     "resolveJsonModule": true,
-    "isolatedModules": false,  // ✅ Fix Webpack build issues
-    "jsx": "react-jsx",  // ✅ Ensures JSX compiles properly
+    "isolatedModules": false,   // ✅ Helps with build tools
+    "jsx": "react-jsx",         // ✅ For React 17+ JSX transform
     "incremental": true,
+    "typeRoots": ["node_modules/@types"],
+    "noImplicitAny": true,
+    "forceConsistentCasingInFileNames": true,
     "paths": {
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],  
-  "exclude": ["node_modules", "dist"]  
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist"]
 }
