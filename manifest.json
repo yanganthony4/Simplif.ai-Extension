@@ -2,12 +2,8 @@
   "manifest_version": 3,
   "name": "Simplif.ai",
   "version": "1.0",
-  "description": "Grabs text from paragraphs and summarizes them",
-  "permissions": [
-    "scripting",
-    "activeTab",
-    "tabs"
-  ],
+  "description": "AI-driven accessibility tool for text summarization, translation, and text-to-speech.",
+  "permissions": ["scripting", "tabs", "storage"],
   "host_permissions": [
     "<all_urls>"
   ],

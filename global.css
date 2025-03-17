@@ -1,0 +1,44 @@
+/* Dark Mode - Improves UI readability */
+.dark-mode {
+    background-color: #121212 !important;
+    color: white !important;
+}
+
+/* Ensures buttons are visible in Dark Mode */
+.dark-mode button {
+    background-color: #333 !important;
+    color: white !important;
+    border: 1px solid white !important;
+}
+
+/* High Contrast Mode - Ensures clear visibility */
+.high-contrast-mode {
+    background-color: black !important;
+    color: yellow !important;
+    font-weight: bold !important;
+    text-transform: uppercase !important;
+}
+
+/* High Contrast Mode - Improves button visibility */
+.high-contrast-mode button {
+    background-color: yellow !important;
+    color: black !important;
+    border: 2px solid white !important;
+}
+
+/* Ensures input fields remain readable */
+.dark-mode input, 
+.high-contrast-mode input, 
+.dark-mode select, 
+.high-contrast-mode select {
+    background-color: #222 !important;
+    color: white !important;
+    border: 1px solid white !important;
+}
+
+/* Ensures text inside buttons remains readable */
+.dark-mode button:hover, 
+.high-contrast-mode button:hover {
+    background-color: #555 !important;
+    color: white !important;
+}
