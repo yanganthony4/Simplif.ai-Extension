@@ -1,0 +1,32 @@
+@font-face {
+    font-family: 'OpenDyslexic';
+    src: url('fonts/OpenDyslexic-Regular.woff2') format('woff2'),
+         url('fonts/OpenDyslexic-Regular.woff') format('woff');
+}
+
+@font-face {
+    font-family: 'OpenDyslexic-Bold';
+    src: url('fonts/OpenDyslexic-Bold.woff2') format('woff2'),
+         url('fonts/OpenDyslexic-Bold.woff') format('woff');
+    font-weight: bold;
+}
+
+@font-face {
+    font-family: 'OpenDyslexic-Italic';
+    src: url('fonts/OpenDyslexic-Italic.woff2') format('woff2'),
+         url('fonts/OpenDyslexic-Italic.woff') format('woff');
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'OpenDyslexic-BoldItalic';
+    src: url('fonts/OpenDyslexic-BoldItalic.woff2') format('woff2'),
+         url('fonts/OpenDyslexic-BoldItalic.woff') format('woff');
+    font-weight: bold;
+    font-style: italic;
+}
+
+/* OpenDyslexic fontunu tüm metinlere uygula */
+body.open-dyslexic, body.open-dyslexic * {
+    font-family: 'OpenDyslexic', Arial, sans-serif !important;
+}
