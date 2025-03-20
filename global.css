@@ -1,0 +1,253 @@
+/* Base styles */
+:root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary: #6b7280;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --background: #ffffff;
+    --foreground: #1f2937;
+    --card: #ffffff;
+    --card-foreground: #1f2937;
+    --border: #e5e7eb;
+    --input: #e5e7eb;
+    --ring: #4f46e5;
+    --radius: 0.5rem;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+      "Helvetica Neue", sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    transition: all 0.2s ease;
+  }
+  
+  /* Modern button styles */
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: var(--primary);
+    color: white;
+  }
+  
+  button:hover {
+    background-color: var(--primary-hover);
+  }
+  
+  button:focus {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* Form controls */
+  input,
+  select {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--input);
+    background-color: var(--background);
+    color: var(--foreground);
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: all 0.2s ease;
+  }
+  
+  input:focus,
+  select:focus {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-color: var(--ring);
+  }
+  
+  /* Card styles */
+  .card {
+    background-color: var(--card);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Accessibility modes */
+  .dark-mode {
+    --background: #121212;
+    --foreground: #e5e7eb;
+    --card: #1f2937;
+    --card-foreground: #e5e7eb;
+    --border: #374151;
+    --input: #374151;
+  }
+  
+  .high-contrast-mode {
+    --background: #000000;
+    --foreground: #ffff00;
+    --card: #000000;
+    --card-foreground: #ffff00;
+    --border: #ffffff;
+    --input: #000000;
+    --primary: #ffff00;
+    --primary-hover: #e6e600;
+    font-weight: bold;
+  }
+  
+  /* High Contrast Mode - Improves button visibility */
+  .high-contrast-mode button {
+    background-color: var(--primary);
+    color: black;
+    border: 2px solid white;
+  }
+  
+  /* Ensures input fields remain readable */
+  .dark-mode input,
+  .high-contrast-mode input,
+  .dark-mode select,
+  .high-contrast-mode select {
+    background-color: var(--input);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+  }
+  
+  /* Utility classes */
+  .mb-2 {
+    margin-bottom: 0.5rem;
+  }
+  .mb-4 {
+    margin-bottom: 1rem;
+  }
+  .mt-4 {
+    margin-top: 1rem;
+  }
+  .flex {
+    display: flex;
+  }
+  .flex-col {
+    flex-direction: column;
+  }
+  .gap-2 {
+    gap: 0.5rem;
+  }
+  .gap-4 {
+    gap: 1rem;
+  }
+  .items-center {
+    align-items: center;
+  }
+  .justify-between {
+    justify-content: space-between;
+  }
+  .w-full {
+    width: 100%;
+  }
+  .text-sm {
+    font-size: 0.875rem;
+  }
+  .text-lg {
+    font-size: 1.125rem;
+  }
+  .text-xl {
+    font-size: 1.25rem;
+  }
+  .text-2xl {
+    font-size: 1.5rem;
+  }
+  .font-bold {
+    font-weight: 700;
+  }
+  .font-medium {
+    font-weight: 500;
+  }
+  .rounded {
+    border-radius: var(--radius);
+  }
+  .p-4 {
+    padding: 1rem;
+  }
+  .py-2 {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .px-4 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Button variants */
+  .btn-primary {
+    background-color: var(--primary);
+    color: white;
+  }
+  .btn-secondary {
+    background-color: var(--secondary);
+    color: white;
+  }
+  .btn-success {
+    background-color: var(--success);
+    color: white;
+  }
+  .btn-danger {
+    background-color: var(--danger);
+    color: white;
+  }
+  .btn-warning {
+    background-color: var(--warning);
+    color: white;
+  }
+  
+  /* Loading spinner */
+  .spinner {
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top: 3px solid var(--primary);
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
+  
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Slider styling */
+  input[type="range"] {
+    -webkit-appearance: none;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--input);
+    outline: none;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+  }

@@ -1,12 +1,13 @@
-const path = require("path");
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const CopyWebpackPlugin = require("copy-webpack-plugin"); // Add this line
+const path = require("path")
+const HtmlWebpackPlugin = require("html-webpack-plugin")
+const CopyWebpackPlugin = require("copy-webpack-plugin") // Add this line
 
 module.exports = {
   entry: "./src/popup.tsx", // Entry point for your React app
   output: {
     filename: "popup.js",
     path: path.resolve(__dirname, "dist"),
+    "clean": true,
   },
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
@@ -34,4 +35,5 @@ module.exports = {
     }),    
   ],
   mode: "production",
-};
+}
+
