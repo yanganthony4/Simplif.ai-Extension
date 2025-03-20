@@ -34,7 +34,8 @@ function Popup(): JSX.Element {
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
   const [readingLevel, setReadingLevel] = useState<number>(2);
   const [targetLanguage, setTargetLanguage] = useState<string>("EN");
-
+  const [isOpenDyslexic, setIsOpenDyslexic] = useState<boolean>(false);
+  
   // State variables for Text-to-Speech
   const [speechRate, setSpeechRate] = useState<number>(1.0);
   const [speechPitch, setSpeechPitch] = useState<number>(1.0);
@@ -62,6 +63,31 @@ function Popup(): JSX.Element {
         console.error("Error fetching paragraphs:", err);
       });
   }, []);
+
+
+  useEffect(() => {
+    chrome.storage.sync.get(["openDyslexic"], (result) => {
+      setIsOpenDyslexic(result.openDyslexic || false);
+    });
+  }, []);
+
+  // Toggle OpenDyslexic Font
+  const toggleOpenDyslexic = () => {
+    const newState = !isOpenDyslexic;
+    setIsOpenDyslexic(newState);
+    chrome.storage.sync.set({ openDyslexic: newState });
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length === 0) return;
+      const tabId = tabs[0].id;
+      if (typeof tabId !== "number") return;
+
+      chrome.tabs.sendMessage(tabId, {
+        action: "toggleOpenDyslexic",
+        enable: newState,
+      });
+    });
+  };
 
   // Load available voices and filter by allowed languages
   useEffect(() => {
@@ -487,6 +513,24 @@ function Popup(): JSX.Element {
         <p className="text-sm">AI-powered accessibility tool</p>
       </header>
 
+      <div className="p-4 w-96">
+      <h1 className="text-2xl font-bold mb-4">Simplif.ai</h1>
+
+      {/* OpenDyslexic Font Toggle */}
+      <div className="mb-4 flex items-center">
+        <input
+          type="checkbox"
+          id="openDyslexic"
+          checked={isOpenDyslexic}
+          onChange={toggleOpenDyslexic}
+          className="mr-2"
+        />
+        <label htmlFor="openDyslexic" className="text-sm text-gray-700">
+          Enable OpenDyslexic Font
+        </label>
+      </div>
+    </div>
+    
       {/* Navigation */}
       <nav className="flex border-b mb-4 gap-2">
         <button

@@ -1,20 +1,20 @@
 // Store the original state to restore when needed
-let originalBodyClasses = ""
+let originalBodyClasses = "";
 
 // Initialize accessibility state
 document.addEventListener("DOMContentLoaded", () => {
-  originalBodyClasses = document.body.className
+  originalBodyClasses = document.body.className;
 
   // Check if we should apply dark mode or high contrast from storage
   chrome.storage.sync.get(["darkMode", "highContrast"], (result) => {
     if (result.darkMode) {
-      document.body.classList.add("dark-mode")
+      document.body.classList.add("dark-mode");
     }
     if (result.highContrast) {
-      document.body.classList.add("high-contrast-mode")
+      document.body.classList.add("high-contrast-mode");
     }
-  })
-})
+  });
+});
 
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -22,102 +22,136 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "getParagraphs") {
     const paragraphs = Array.from(document.getElementsByTagName("p"))
       .map((p) => p.innerText.trim())
-      .filter((text) => text.length > 0)
+      .filter((text) => text.length > 0);
 
     // If no paragraphs found, try to get text from other elements
     if (paragraphs.length === 0) {
-      const articleContent = document.querySelector("article")
+      const articleContent = document.querySelector("article");
       if (articleContent) {
-        paragraphs.push(articleContent.innerText.trim())
+        paragraphs.push(articleContent.innerText.trim());
       } else {
-        // Try to get main content
-        const mainContent = document.querySelector("main")
+        const mainContent = document.querySelector("main");
         if (mainContent) {
-          paragraphs.push(mainContent.innerText.trim())
+          paragraphs.push(mainContent.innerText.trim());
         } else {
-          // Fallback to body content
-          paragraphs.push(document.body.innerText.trim())
+          paragraphs.push(document.body.innerText.trim());
         }
       }
     }
 
-    sendResponse({ paragraphs })
+    sendResponse({ paragraphs });
   }
 
-  // Text-to-speech functionality
-  if (request.action === "speakText") {
-    // Cancel any ongoing speech
-    speechSynthesis.cancel()
+  // ✅ Toggle OpenDyslexic Font
+  if (request.action === "toggleOpenDyslexic") {
+    if (request.enable) {
+      // Inject OpenDyslexic Font from CDN if not already present
+      if (!document.getElementById("openDyslexicFont")) {
+        const fontLink = document.createElement("link");
+        fontLink.id = "openDyslexicFont";
+        fontLink.rel = "stylesheet";
+        fontLink.href = "https://fonts.cdnfonts.com/css/open-dyslexic"; // ✅ Working URL
+        document.head.appendChild(fontLink);
+      }
 
-    const utterance = new SpeechSynthesisUtterance(request.text)
-    utterance.lang = request.lang || "en-US" // Default to English
-    utterance.rate = request.rate || 1.0 // Normal speed
-    utterance.pitch = request.pitch || 1.0 // Normal pitch
+      // Inject simple CSS to apply the font to all elements
+      if (!document.getElementById("openDyslexicStyles")) {
+        const style = document.createElement("style");
+        style.id = "openDyslexicStyles";
+        style.innerHTML = `
+          * {
+            font-family: 'Open-Dyslexic' !important;
+            font-weight: normal !important;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+
+      document.body.classList.add("open-dyslexic");
+    } else {
+      // Remove OpenDyslexic font and styles
+      document.body.classList.remove("open-dyslexic");
+
+      const fontLink = document.getElementById("openDyslexicFont");
+      if (fontLink) fontLink.remove();
+
+      const style = document.getElementById("openDyslexicStyles");
+      if (style) style.remove();
+
+      const resetStyle = document.createElement("style");
+      resetStyle.id = "resetFontStyles";
+      resetStyle.innerHTML = `* { font-family: initial !important; }`;
+      document.head.appendChild(resetStyle);
+
+      setTimeout(() => {
+        document.getElementById("resetFontStyles")?.remove();
+      }, 100);
+    }
+  }
+
+  // ✅ Text-to-Speech Functionality
+  if (request.action === "speakText") {
+    speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(request.text);
+    utterance.lang = request.lang || "en-US";
+    utterance.rate = request.rate || 1.0;
+    utterance.pitch = request.pitch || 1.0;
 
     // Add accessibility announcement
-    const announcement = new SpeechSynthesisUtterance("Starting text-to-speech")
-    announcement.volume = 0.3
-    speechSynthesis.speak(announcement)
+    const announcement = new SpeechSynthesisUtterance("Starting text-to-speech");
+    announcement.volume = 0.3;
+    speechSynthesis.speak(announcement);
 
-    // Start speaking after a short delay
     setTimeout(() => {
-      speechSynthesis.speak(utterance)
-    }, 500)
+      speechSynthesis.speak(utterance);
+    }, 500);
 
-    sendResponse({ status: "speaking" })
+    sendResponse({ status: "speaking" });
   }
 
-  // Pause speech
+  // ✅ Pause Speech
   if (request.action === "pauseSpeech") {
-    speechSynthesis.pause()
-    sendResponse({ status: "paused" })
+    speechSynthesis.pause();
+    sendResponse({ status: "paused" });
   }
 
-  // Resume speech
+  // ✅ Resume Speech
   if (request.action === "resumeSpeech") {
-    speechSynthesis.resume()
-    sendResponse({ status: "resumed" })
+    speechSynthesis.resume();
+    sendResponse({ status: "resumed" });
   }
 
-  // Stop speech
+  // ✅ Stop Speech
   if (request.action === "stopSpeech") {
-    speechSynthesis.cancel()
-    sendResponse({ status: "stopped" })
+    speechSynthesis.cancel();
+    sendResponse({ status: "stopped" });
   }
 
-  // Toggle dark mode
+  // ✅ Toggle Dark Mode
   if (request.action === "toggleDarkMode") {
-    const isDarkMode = document.body.classList.toggle("dark-mode")
+    const isDarkMode = document.body.classList.toggle("dark-mode");
+    chrome.storage.sync.set({ darkMode: isDarkMode });
 
-    // Store preference
-    chrome.storage.sync.set({ darkMode: isDarkMode })
-
-    // Remove high contrast if it's active
     if (isDarkMode && document.body.classList.contains("high-contrast-mode")) {
-      document.body.classList.remove("high-contrast-mode")
-      chrome.storage.sync.set({ highContrast: false })
+      document.body.classList.remove("high-contrast-mode");
+      chrome.storage.sync.set({ highContrast: false });
     }
 
-    sendResponse({ status: "darkModeToggled", active: isDarkMode })
+    sendResponse({ status: "darkModeToggled", active: isDarkMode });
   }
 
-  // Toggle high contrast mode
+  // ✅ Toggle High Contrast Mode
   if (request.action === "toggleHighContrast") {
-    const isHighContrast = document.body.classList.toggle("high-contrast-mode")
+    const isHighContrast = document.body.classList.toggle("high-contrast-mode");
+    chrome.storage.sync.set({ highContrast: isHighContrast });
 
-    // Store preference
-    chrome.storage.sync.set({ highContrast: isHighContrast })
-
-    // Remove dark mode if it's active
     if (isHighContrast && document.body.classList.contains("dark-mode")) {
-      document.body.classList.remove("dark-mode")
-      chrome.storage.sync.set({ darkMode: false })
+      document.body.classList.remove("dark-mode");
+      chrome.storage.sync.set({ darkMode: false });
     }
 
-    sendResponse({ status: "highContrastToggled", active: isHighContrast })
+    sendResponse({ status: "highContrastToggled", active: isHighContrast });
   }
 
-  // Return true to indicate we'll respond asynchronously
-  return true
-})
-
+  return true; // Indicate we'll respond asynchronously
+});

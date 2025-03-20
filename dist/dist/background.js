@@ -1,0 +1,1 @@
+"undefined"!=typeof chrome&&chrome.runtime&&chrome.runtime.onInstalled.addListener((()=>{console.log("Simplif.ai installed!"),chrome.storage.sync.set({darkMode:!1,highContrast:!1,openDyslexic:!1,readingLevel:2,speechRate:1,speechPitch:1,selectedVoice:"en-US"},(()=>{console.log("Default settings initialized")}))}));
