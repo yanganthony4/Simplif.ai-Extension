@@ -175,50 +175,65 @@ function Popup(): JSX.Element {
   };
 
   // Text-to-speech functions using dynamic voices
-  const handleSpeakText = (): void => {
+  const handleSpeakSummary = (): void => {
+    if (!summary || summary.trim().length === 0) {
+        setError("No summary available to read aloud.");
+        return;
+    }
+
     setIsSpeaking(true);
     setIsPaused(false);
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0 || !tabs[0].id) return;
-      const tabId = tabs[0].id ?? -1;
-      if (tabId === -1) return;
-      chrome.tabs.sendMessage(
-        tabId,
-        { action: "getParagraphs" },
-        (response: { paragraphs?: string[] }) => {
-          if (response && response.paragraphs && response.paragraphs.length > 0) {
-            // Here we send the selected voice name instead of a language code.
-            chrome.tabs.sendMessage(tabId, {
-              action: "speakText",
-              text: response.paragraphs.join(" "),
-              voice: selectedVoice,
-              rate: speechRate,
-              pitch: speechPitch,
-            });
-          }
-        }
-      );
-    });
-  };
 
-  const handleStopSpeech = (): void => {
-    setIsSpeaking(false);
-    setIsPaused(false);
+    // Detect language based on translation
+    const languageVoices: { [key: string]: string } = {
+        EN: "en-US",
+        FR: "fr-FR",
+        ES: "es-ES",
+        JA: "ja-JP",
+        ZH: "zh-CN",
+        DE: "de-DE",
+        IT: "it-IT",
+    };
+
+    // Default to English if the language isn't found
+    const selectedLangVoice = languageVoices[targetLanguage] || "en-US";
+
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length === 0 || !tabs[0].id) return;
+        const tabId = tabs[0].id ?? -1;
+        if (tabId === -1) return;
+
+        chrome.tabs.sendMessage(tabId, {
+            action: "speakText",
+            text: summary, // Read the translated summary
+            voice: selectedLangVoice, // Set the correct language voice
+            rate: speechRate,
+            pitch: speechPitch,
+        });
+    });
+};
+
+
+  const handleStopSummarySpeech = (): void => {
+  setIsSpeaking(false);
+  setIsPaused(false);
+  
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length === 0 || !tabs[0].id) return;
       const tabId = tabs[0].id;
       chrome.tabs.sendMessage(tabId, { action: "stopSpeech" });
-    });
-  };
+  });
+};
 
-  const handlePauseResumeSpeech = (): void => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+
+   const handlePauseResumeSummarySpeech = (): void => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length === 0 || !tabs[0].id) return;
       const tabId = tabs[0].id;
       chrome.tabs.sendMessage(tabId, { action: isPaused ? "resumeSpeech" : "pauseSpeech" });
       setIsPaused(!isPaused);
-    });
-  };
+  });
+};
 
   // Accessibility mode toggles remain unchanged
   const toggleDarkMode = (): void => {
@@ -400,30 +415,17 @@ function Popup(): JSX.Element {
               </div>
 
               <div className="flex gap-2">
-                <button
-                  onClick={handleSpeakText}
-                  disabled={isSpeaking && !isPaused}
-                  className="w-full btn-primary"
-                  aria-label="Start reading aloud"
-                >
-                  Read Aloud
-                </button>
+    <button onClick={handleSpeakSummary}>
+        {isSpeaking ? "Stop" : "Read Aloud Summary"}
+    </button>
+    <button onClick={handlePauseResumeSummarySpeech} disabled={!isSpeaking}>
+        {isPaused ? "Resume" : "Pause"}
+    </button>
+    <button onClick={handleStopSummarySpeech} disabled={!isSpeaking}>
+        Stop
+    </button>
+</div>
 
-                {isSpeaking && (
-                  <>
-                    <button
-                      onClick={handlePauseResumeSpeech}
-                      className="w-full btn-warning"
-                      aria-label={isPaused ? "Resume reading" : "Pause reading"}
-                    >
-                      {isPaused ? "Resume" : "Pause"}
-                    </button>
-                    <button onClick={handleStopSpeech} className="w-full btn-danger" aria-label="Stop reading">
-                      Stop
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
           </div>
         );
