@@ -7,7 +7,9 @@ import axios from "axios";
 // API Keys - In production, these should be secured and not exposed in client-side code
 const API_KEY =
   "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";
-const DEEPL_API_KEY = "bc917a54-fb21-4706-9b99-87d15c3600db:fx";
+const DEEPL_API_KEY =
+  "bc917a54-fb21-4706-9b99-87d15c3600db:fx";
+const OCR_API_KEY = "K84385468488957";
 
 // Supported Languages
 const languages = [
@@ -42,14 +44,18 @@ const readingLevels = [
 type ActiveTab = "summarize" | "settings";
 
 function Popup(): JSX.Element {
-  // Summarization & Translation
+  // Summarization, Translation & OCR
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
+  const [isProcessingImages, setIsProcessingImages] = useState<boolean>(false);
 
   // Reading Level (1–3)
   const [readingLevel, setReadingLevel] = useState<number>(2);
+
+  // OCR Toggle (Include Images)
+  const [includeImages, setIncludeImages] = useState<boolean>(true);
 
   // TTS (integrated in Summarize)
   const [speechRate, setSpeechRate] = useState<number>(1.0);
@@ -123,6 +129,96 @@ function Popup(): JSX.Element {
     });
   };
 
+  // Fetch image URLs from the active tab
+  const fetchImages = async (): Promise<string[] | null> => {
+    return new Promise((resolve, reject) => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length === 0) {
+          reject("No active tab found");
+          return;
+        }
+        const tabId = tabs[0].id;
+        if (typeof tabId !== "number") {
+          reject("No valid tab ID found");
+          return;
+        }
+        chrome.scripting.executeScript(
+          {
+            target: { tabId },
+            func: () => {
+              // Find all images that might be relevant (inside article content)
+              const images = Array.from(
+                document.querySelectorAll(
+                  "article img, main img, .content img, .post img, img"
+                )
+              ) as HTMLImageElement[];
+              // Filter out small icons, avatars, etc.
+              const relevantImages = images.filter((img) => {
+                const rect = img.getBoundingClientRect();
+                return rect.width > 200 && rect.height > 100;
+              });
+              return relevantImages.map((img) => img.src);
+            },
+          },
+          (results) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError.message || "An unknown error occurred");
+              return;
+            }
+            if (!results || results.length === 0) {
+              resolve([]);
+              return;
+            }
+            resolve(results[0]?.result || []);
+          }
+        );
+      });
+    });
+  };
+
+  // Process images with OCR
+  const processImagesWithOCR = async (imageUrls: string[]): Promise<string> => {
+    if (!imageUrls || imageUrls.length === 0) return "";
+    let ocrText = "";
+    setIsProcessingImages(true);
+    try {
+      // Process up to 3 images maximum
+      const imagesToProcess = imageUrls.slice(0, 3);
+      for (const imageUrl of imagesToProcess) {
+        const formData = new FormData();
+        formData.append("apikey", OCR_API_KEY);
+        formData.append("url", imageUrl);
+        formData.append("language", "eng");
+        formData.append("isOverlayRequired", "false");
+        const response = await axios.post(
+          "https://api.ocr.space/parse/image",
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        if (
+          response.data &&
+          response.data.ParsedResults &&
+          response.data.ParsedResults.length > 0
+        ) {
+          const extractedText = response.data.ParsedResults[0].ParsedText;
+          if (extractedText && extractedText.trim().length > 0) {
+            ocrText += extractedText + "\n\n";
+          }
+        }
+      }
+      return ocrText;
+    } catch (error) {
+      console.error("OCR processing failed:", error);
+      return "";
+    } finally {
+      setIsProcessingImages(false);
+    }
+  };
+
   // Summarize text function
   const summarizeText = async (): Promise<void> => {
     if (isSummarizing) return;
@@ -136,7 +232,19 @@ function Popup(): JSX.Element {
         setIsSummarizing(false);
         return;
       }
-      const text = paragraphs.join("\n");
+      let text = paragraphs.join("\n");
+
+      // If OCR is enabled, process images from the page.
+      if (includeImages) {
+        const imageUrls = await fetchImages();
+        if (imageUrls && imageUrls.length > 0) {
+          const ocrText = await processImagesWithOCR(imageUrls);
+          if (ocrText) {
+            text += "\n\nText from images:\n" + ocrText;
+          }
+        }
+      }
+
       const prompts = [
         `Summarize for a 4th-grade reading level: ${text}`,
         `Summarize in simple terms: ${text}`,
@@ -235,25 +343,55 @@ function Popup(): JSX.Element {
   // Toggle Dark Mode
   const toggleDarkMode = (): void => {
     const newMode = !isDarkMode;
+    if (newMode && isHighContrast) {
+      setIsHighContrast(false);
+      document.body.classList.remove("high-contrast-mode");
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length && tabs[0].id) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: "disableHighContrast" });
+        }
+      });
+    }
     setIsDarkMode(newMode);
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0 || !tabs[0].id) return;
-      const tabId = tabs[0].id;
-      chrome.tabs.sendMessage(tabId, { action: "toggleDarkMode" });
+      if (tabs.length && tabs[0].id) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: newMode ? "enableDarkMode" : "disableDarkMode",
+        });
+      }
     });
-    document.body.classList.toggle("dark-mode");
+    if (newMode) {
+      document.body.classList.add("dark-mode");
+    } else {
+      document.body.classList.remove("dark-mode");
+    }
   };
 
   // Toggle High Contrast
   const toggleHighContrast = (): void => {
     const newMode = !isHighContrast;
+    if (newMode && isDarkMode) {
+      setIsDarkMode(false);
+      document.body.classList.remove("dark-mode");
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs.length && tabs[0].id) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: "disableDarkMode" });
+        }
+      });
+    }
     setIsHighContrast(newMode);
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0 || !tabs[0].id) return;
-      const tabId = tabs[0].id;
-      chrome.tabs.sendMessage(tabId, { action: "toggleHighContrast" });
+      if (tabs.length && tabs[0].id) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: newMode ? "enableHighContrast" : "disableHighContrast",
+        });
+      }
     });
-    document.body.classList.toggle("high-contrast-mode");
+    if (newMode) {
+      document.body.classList.add("high-contrast-mode");
+    } else {
+      document.body.classList.remove("high-contrast-mode");
+    }
   };
 
   // Render content based on active tab
@@ -285,17 +423,37 @@ function Popup(): JSX.Element {
                   style={{ display: "block", width: "93%" }}
                 />
               </div>
+              {/* OCR Checkbox */}
+              <div className="mb-4 flex items-center">
+                <input
+                  type="checkbox"
+                  id="includeImages"
+                  checked={includeImages}
+                  onChange={(e) => setIncludeImages(e.target.checked)}
+                  className="mr-2"
+                />
+                <label htmlFor="includeImages" className="text-sm text-gray-700">
+                  Include text from images (OCR)
+                </label>
+              </div>
               <button
                 onClick={summarizeText}
-                disabled={isSummarizing || paragraphCount === 0}
+                disabled={isSummarizing || paragraphCount === 0 || isProcessingImages}
                 className="w-full btn-primary"
                 aria-busy={isSummarizing}
               >
                 {isSummarizing ? (
-                  <>
-                    <span className="spinner" aria-hidden="true"></span>
-                    Summarizing...
-                  </>
+                  isProcessingImages ? (
+                    <>
+                      <span className="spinner" aria-hidden="true"></span>
+                      Processing images...
+                    </>
+                  ) : (
+                    <>
+                      <span className="spinner" aria-hidden="true"></span>
+                      Summarizing...
+                    </>
+                  )
                 ) : paragraphCount === 0 ? (
                   "No content to summarize"
                 ) : (
@@ -321,67 +479,80 @@ function Popup(): JSX.Element {
                       title="Read Aloud Summary"
                       aria-label="Read Aloud Summary"
                     >
-                      👄
+                      🔊
                     </button>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={translateText}
-                      disabled={isTranslating}
-                      className="btn-secondary text-sm"
-                      aria-busy={isTranslating}
-                    >
-                      {isTranslating ? (
-                        <>
-                          <span className="spinner" aria-hidden="true"></span>
-                          Translating...
-                        </>
-                      ) : (
-                        "Translate"
-                      )}
-                    </button>
-                    {/* Custom dropdown container */}
-                    <div style={{ position: "relative", display: "inline-block" }}>
-                      <select
-                        ref={selectRef}
-                        value={targetLanguage}
-                        onChange={(e) => setTargetLanguage(e.target.value)}
-                        className="text-sm"
-                        aria-label="Target language"
-                        style={{
-                          paddingRight: "1.5rem",
-                          appearance: "none", // hide native arrow
-                        }}
-                      >
-                        {languages.map((lang) => (
-                          <option key={lang.code} value={lang.code}>
-                            {lang.name}
-                          </option>
-                        ))}
-                      </select>
-                      {/* Custom arrow with tooltip */}
-                      <span
-                        title="Select Language"
-                        onClick={() => {
-                          // Focus and trigger a click on the select element so that it opens
-                          if (selectRef.current) {
-                            selectRef.current.focus();
-                            selectRef.current.click();
-                          }
-                        }}
-                        style={{
-                          position: "absolute",
-                          right: "0.5rem",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          cursor: "pointer",
-                          userSelect: "none",
-                        }}
-                      >
-                        ▼
-                      </span>
-                    </div>
-                  </div>
+<div className="flex gap-2 items-center">
+  {/* Translate Button */}
+  <button
+    onClick={translateText}
+    disabled={isTranslating}
+    className="btn-secondary text-sm"
+    aria-busy={isTranslating}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "0.5rem",
+    }}
+  >
+    {isTranslating ? (
+      <>
+        <span className="spinner" aria-hidden="true"></span>
+        Translating...
+      </>
+    ) : (
+      "Translate"
+    )}
+  </button>
+
+  {/* Hidden Select Element */}
+  <select
+    ref={selectRef}
+    value={targetLanguage}
+    onChange={(e) => setTargetLanguage(e.target.value)}
+    style={{ display: "none" }}
+    aria-label="Target language"
+  >
+    {languages.map((lang) => (
+      <option key={lang.code} value={lang.code}>
+        {lang.name}
+      </option>
+    ))}
+  </select>
+
+  {/* Minimal Arrow Button */}
+  <button
+    type="button"
+    title="Select language"
+    onClick={() => {
+      // Programmatically open the hidden <select>
+      if (selectRef.current) {
+        selectRef.current.focus();
+        selectRef.current.click();
+      }
+    }}
+    style={{
+      background: "transparent",
+      border: "none",
+      cursor: "pointer",
+      padding: 0,
+      display: "flex",
+      alignItems: "center",
+    }}
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      className="h-4 w-4 text-gray-700"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+</div>
+
                 </div>
                 <p className="text-sm">{summary}</p>
                 {isSpeaking && (
@@ -393,7 +564,11 @@ function Popup(): JSX.Element {
                     >
                       {isPaused ? "Resume" : "Pause"}
                     </button>
-                    <button onClick={handleStopSummarySpeech} className="btn-danger" aria-label="Stop reading">
+                    <button
+                      onClick={handleStopSummarySpeech}
+                      className="btn-danger"
+                      aria-label="Stop reading"
+                    >
                       Stop
                     </button>
                   </div>
@@ -403,7 +578,10 @@ function Popup(): JSX.Element {
             {error && (
               <div
                 className="card"
-                style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", borderColor: "var(--danger)" }}
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.1)",
+                  borderColor: "var(--danger)",
+                }}
               >
                 <p className="text-sm" style={{ color: "var(--danger)" }}>
                   {error}
@@ -422,7 +600,9 @@ function Popup(): JSX.Element {
                   <label className="text-sm font-medium">Dark Mode</label>
                   <button
                     onClick={toggleDarkMode}
-                    className={`px-4 py-2 rounded ${isDarkMode ? "btn-primary" : "btn-secondary"}`}
+                    className={`px-4 py-2 rounded ${
+                      isDarkMode ? "btn-primary" : "btn-secondary"
+                    }`}
                     aria-pressed={isDarkMode}
                   >
                     {isDarkMode ? "Enabled" : "Disabled"}
@@ -432,7 +612,9 @@ function Popup(): JSX.Element {
                   <label className="text-sm font-medium">High Contrast Mode</label>
                   <button
                     onClick={toggleHighContrast}
-                    className={`px-4 py-2 rounded ${isHighContrast ? "btn-primary" : "btn-secondary"}`}
+                    className={`px-4 py-2 rounded ${
+                      isHighContrast ? "btn-primary" : "btn-secondary"
+                    }`}
                     aria-pressed={isHighContrast}
                   >
                     {isHighContrast ? "Enabled" : "Disabled"}
@@ -443,7 +625,8 @@ function Popup(): JSX.Element {
             <div className="card">
               <h2 className="text-lg font-bold mb-2">About Simplif.ai</h2>
               <p className="text-sm mb-2">
-                Simplif.ai is an AI-powered accessibility tool that helps make web content more accessible through:
+                Simplif.ai is an AI-powered accessibility tool that helps make web content more
+                accessible through:
               </p>
               <ul className="text-sm list-disc pl-5 mb-2">
                 <li>Text summarization at different reading levels</li>
@@ -463,7 +646,6 @@ function Popup(): JSX.Element {
   return (
     <div
       style={{
-        // Ensure symmetrical horizontal padding and box-sizing
         boxSizing: "border-box",
         width: "350px",
         height: "500px",
@@ -471,7 +653,7 @@ function Popup(): JSX.Element {
         overflowX: "hidden",
         marginLeft: "auto",
         marginRight: "auto",
-        padding: "0 1rem", // horizontal padding for symmetrical sides
+        padding: "0 1rem",
         display: "flex",
         flexDirection: "column",
       }}
@@ -497,7 +679,6 @@ function Popup(): JSX.Element {
         >
           Summarize
         </button>
-
         <button
           onClick={() => setActiveTab("settings")}
           style={{
