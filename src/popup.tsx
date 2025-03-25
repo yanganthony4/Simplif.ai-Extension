@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, JSX } from "react";
+import React, { useState, useEffect, JSX, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import axios from "axios";
 
@@ -61,6 +61,8 @@ function Popup(): JSX.Element {
 
   // Target Language (for translation)
   const [targetLanguage, setTargetLanguage] = useState<string>("EN");
+  // Create a ref for the select element so we can trigger its click when the arrow is clicked
+  const selectRef = useRef<HTMLSelectElement>(null);
 
   // Paragraph count
   const [paragraphCount, setParagraphCount] = useState<number>(0);
@@ -280,7 +282,7 @@ function Popup(): JSX.Element {
                   onChange={(e) => setReadingLevel(Number(e.target.value))}
                   className="w-full"
                   aria-label="Reading level"
-                  style={{ display: "block", margin: "0 auto", width: "100%" }}
+                  style={{ display: "block", width: "93%" }}
                 />
               </div>
               <button
@@ -323,18 +325,6 @@ function Popup(): JSX.Element {
                     </button>
                   </div>
                   <div className="flex gap-2">
-                    <select
-                      value={targetLanguage}
-                      onChange={(e) => setTargetLanguage(e.target.value)}
-                      className="text-sm"
-                      aria-label="Target language"
-                    >
-                      {languages.map((lang) => (
-                        <option key={lang.code} value={lang.code}>
-                          {lang.name}
-                        </option>
-                      ))}
-                    </select>
                     <button
                       onClick={translateText}
                       disabled={isTranslating}
@@ -350,6 +340,47 @@ function Popup(): JSX.Element {
                         "Translate"
                       )}
                     </button>
+                    {/* Custom dropdown container */}
+                    <div style={{ position: "relative", display: "inline-block" }}>
+                      <select
+                        ref={selectRef}
+                        value={targetLanguage}
+                        onChange={(e) => setTargetLanguage(e.target.value)}
+                        className="text-sm"
+                        aria-label="Target language"
+                        style={{
+                          paddingRight: "1.5rem",
+                          appearance: "none", // hide native arrow
+                        }}
+                      >
+                        {languages.map((lang) => (
+                          <option key={lang.code} value={lang.code}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
+                      {/* Custom arrow with tooltip */}
+                      <span
+                        title="Select Language"
+                        onClick={() => {
+                          // Focus and trigger a click on the select element so that it opens
+                          if (selectRef.current) {
+                            selectRef.current.focus();
+                            selectRef.current.click();
+                          }
+                        }}
+                        style={{
+                          position: "absolute",
+                          right: "0.5rem",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          cursor: "pointer",
+                          userSelect: "none",
+                        }}
+                      >
+                        ▼
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <p className="text-sm">{summary}</p>
@@ -430,7 +461,21 @@ function Popup(): JSX.Element {
   };
 
   return (
-    <div className="p-4 w-96">
+    <div
+      style={{
+        // Ensure symmetrical horizontal padding and box-sizing
+        boxSizing: "border-box",
+        width: "350px",
+        height: "500px",
+        overflowY: "auto",
+        overflowX: "hidden",
+        marginLeft: "auto",
+        marginRight: "auto",
+        padding: "0 1rem", // horizontal padding for symmetrical sides
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <header className="mb-4">
         <h1 className="text-2xl font-bold">Simplif.ai</h1>
         <p className="text-sm">AI-powered accessibility tool</p>
@@ -438,14 +483,33 @@ function Popup(): JSX.Element {
       <nav className="flex border-b mb-4 gap-2">
         <button
           onClick={() => setActiveTab("summarize")}
-          className={`py-2 px-4 ${activeTab === "summarize" ? "border-b-2 border-primary font-medium" : "text-secondary"}`}
+          style={{
+            flex: 1,
+            padding: "0.5rem 0",
+            borderRadius: "0.5rem",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: activeTab === "summarize" ? "#6366f1" : "#6b7280",
+            color: "#fff",
+            fontWeight: 500,
+          }}
           aria-selected={activeTab === "summarize"}
         >
           Summarize
         </button>
+
         <button
           onClick={() => setActiveTab("settings")}
-          className={`py-2 px-4 ${activeTab === "settings" ? "border-b-2 border-primary font-medium" : "text-secondary"}`}
+          style={{
+            flex: 1,
+            padding: "0.5rem 0",
+            borderRadius: "0.5rem",
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: activeTab === "settings" ? "#6366f1" : "#6b7280",
+            color: "#fff",
+            fontWeight: 500,
+          }}
           aria-selected={activeTab === "settings"}
         >
           Settings
