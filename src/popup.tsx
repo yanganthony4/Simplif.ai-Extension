@@ -9,7 +9,7 @@ const API_KEY =
   "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";
 const DEEPL_API_KEY = "bc917a54-fb21-4706-9b99-87d15c3600db:fx";
 
-// Supported Languages for translation
+// Supported Languages
 const languages = [
   { code: "EN", name: "English" },
   { code: "FR", name: "French" },
@@ -20,22 +20,38 @@ const languages = [
   { code: "IT", name: "Italian" },
 ];
 
+// Reading levels
 const readingLevels = [
-  { level: 1, name: "Elementary", description: "Simple vocabulary for young readers" },
-  { level: 2, name: "General", description: "Everyday language for most readers" },
-  { level: 3, name: "Academic", description: "Advanced vocabulary for scholarly content" },
+  {
+    level: 1,
+    name: "Elementary",
+    description: "Simple vocabulary for young readers",
+  },
+  {
+    level: 2,
+    name: "General",
+    description: "Everyday language for most readers",
+  },
+  {
+    level: 3,
+    name: "Academic",
+    description: "Advanced vocabulary for scholarly content",
+  },
 ];
 
+type ActiveTab = "summarize" | "settings";
+
 function Popup(): JSX.Element {
-  // State variables for summarization and translation
+  // Summarization & Translation
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
-  const [readingLevel, setReadingLevel] = useState<number>(2);
-  const [targetLanguage, setTargetLanguage] = useState<string>("EN");
 
-  // State variables for Text-to-Speech
+  // Reading Level (1–3)
+  const [readingLevel, setReadingLevel] = useState<number>(2);
+
+  // TTS (integrated in Summarize)
   const [speechRate, setSpeechRate] = useState<number>(1.0);
   const [speechPitch, setSpeechPitch] = useState<number>(1.0);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
@@ -43,44 +59,44 @@ function Popup(): JSX.Element {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
 
-  // Tab navigation and UI state
-  const [activeTab, setActiveTab] = useState<"summarize" | "speech" | "settings">("summarize");
-  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
+  // Target Language (for translation)
+  const [targetLanguage, setTargetLanguage] = useState<string>("EN");
+
+  // Paragraph count
   const [paragraphCount, setParagraphCount] = useState<number>(0);
 
+  // Dark/Contrast modes
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+  const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
+
+  // Two tabs: Summarize & Settings
+  const [activeTab, setActiveTab] = useState<ActiveTab>("summarize");
+
   useEffect(() => {
-    // Fetch paragraphs on load (for summarization)
+    // Fetch paragraphs on load
     fetchParagraphs()
       .then((paragraphs) => {
-        if (paragraphs) {
-          setParagraphCount(paragraphs.length);
-        }
+        if (paragraphs) setParagraphCount(paragraphs.length);
       })
       .catch((err) => {
         console.error("Error fetching paragraphs:", err);
       });
   }, []);
 
-  // Load available voices and filter by allowed languages
+  // Load TTS voices
   useEffect(() => {
     const loadVoices = () => {
-      // Get ALL voices without filtering
       const voices = window.speechSynthesis.getVoices();
       setAvailableVoices(voices);
-  
       if (voices.length > 0) {
         setSelectedVoice(voices[0].name);
       }
     };
-  
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
-  
 
-  // Fetch paragraphs from current page
+  // Fetch paragraphs from the current page
   const fetchParagraphs = async (): Promise<string[] | null> => {
     return new Promise((resolve, reject) => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -89,10 +105,7 @@ function Popup(): JSX.Element {
           return;
         }
         const tabId = tabs[0].id ?? -1;
-        if (tabId === -1) {
-          reject("No valid tab ID");
-          return;
-        }
+        if (tabId === -1) return;
         chrome.tabs.sendMessage(
           tabId,
           { action: "getParagraphs" },
@@ -114,7 +127,6 @@ function Popup(): JSX.Element {
     setIsSummarizing(true);
     setError(null);
     setSummary(null);
-
     try {
       const paragraphs = await fetchParagraphs();
       if (!paragraphs || paragraphs.length === 0) {
@@ -154,7 +166,6 @@ function Popup(): JSX.Element {
     if (!summary || isTranslating) return;
     setIsTranslating(true);
     setError(null);
-
     try {
       const response = await axios.post(
         "https://api-free.deepl.com/v2/translate",
@@ -174,68 +185,52 @@ function Popup(): JSX.Element {
     }
   };
 
-  // Text-to-speech functions using dynamic voices
+  // Read the summary aloud
   const handleSpeakSummary = (): void => {
     if (!summary || summary.trim().length === 0) {
-        setError("No summary available to read aloud.");
-        return;
+      setError("No summary available to read aloud.");
+      return;
     }
-
     setIsSpeaking(true);
     setIsPaused(false);
-
-    // Detect language based on translation
-    const languageVoices: { [key: string]: string } = {
-        EN: "en-US",
-        FR: "fr-FR",
-        ES: "es-ES",
-        JA: "ja-JP",
-        ZH: "zh-CN",
-        DE: "de-DE",
-        IT: "it-IT",
-    };
-
-    // Default to English if the language isn't found
-    const selectedLangVoice = languageVoices[targetLanguage] || "en-US";
-
+    const voiceToUse = selectedVoice || "en-US";
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length === 0 || !tabs[0].id) return;
-        const tabId = tabs[0].id ?? -1;
-        if (tabId === -1) return;
-
-        chrome.tabs.sendMessage(tabId, {
-            action: "speakText",
-            text: summary, // Read the translated summary
-            voice: selectedLangVoice, // Set the correct language voice
-            rate: speechRate,
-            pitch: speechPitch,
-        });
+      if (tabs.length === 0 || !tabs[0].id) return;
+      const tabId = tabs[0].id ?? -1;
+      if (tabId === -1) return;
+      chrome.tabs.sendMessage(tabId, {
+        action: "speakText",
+        text: summary,
+        voice: voiceToUse,
+        rate: speechRate,
+        pitch: speechPitch,
+      });
     });
-};
+  };
 
-
+  // Stop reading
   const handleStopSummarySpeech = (): void => {
-  setIsSpeaking(false);
-  setIsPaused(false);
-  
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    setIsSpeaking(false);
+    setIsPaused(false);
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length === 0 || !tabs[0].id) return;
       const tabId = tabs[0].id;
       chrome.tabs.sendMessage(tabId, { action: "stopSpeech" });
-  });
-};
+    });
+  };
 
-
-   const handlePauseResumeSummarySpeech = (): void => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  // Pause/Resume reading
+  const handlePauseResumeSummarySpeech = (): void => {
+    if (!isSpeaking) return;
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length === 0 || !tabs[0].id) return;
       const tabId = tabs[0].id;
       chrome.tabs.sendMessage(tabId, { action: isPaused ? "resumeSpeech" : "pauseSpeech" });
       setIsPaused(!isPaused);
-  });
-};
+    });
+  };
 
-  // Accessibility mode toggles remain unchanged
+  // Toggle Dark Mode
   const toggleDarkMode = (): void => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
@@ -247,6 +242,7 @@ function Popup(): JSX.Element {
     document.body.classList.toggle("dark-mode");
   };
 
+  // Toggle High Contrast
   const toggleHighContrast = (): void => {
     const newMode = !isHighContrast;
     setIsHighContrast(newMode);
@@ -258,18 +254,23 @@ function Popup(): JSX.Element {
     document.body.classList.toggle("high-contrast-mode");
   };
 
-  // Render tab content
+  // Render content based on active tab
   const renderTabContent = (): JSX.Element | null => {
     switch (activeTab) {
       case "summarize":
         return (
           <div className="flex flex-col gap-4">
+            {/* Summarize Section */}
             <div className="card">
               <h2 className="text-lg font-bold mb-2">Reading Level</h2>
               <div className="mb-4">
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm">{readingLevels[readingLevel - 1].name}</span>
-                  <span className="text-sm">{readingLevels[readingLevel - 1].description}</span>
+                <div className="flex flex-col mb-2">
+                  <span className="text-sm font-bold">
+                    {readingLevels[readingLevel - 1].name}
+                  </span>
+                  <span className="text-xs text-gray-600">
+                    {readingLevels[readingLevel - 1].description}
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -279,9 +280,9 @@ function Popup(): JSX.Element {
                   onChange={(e) => setReadingLevel(Number(e.target.value))}
                   className="w-full"
                   aria-label="Reading level"
+                  style={{ display: "block", margin: "0 auto", width: "100%" }}
                 />
               </div>
-
               <button
                 onClick={summarizeText}
                 disabled={isSummarizing || paragraphCount === 0}
@@ -300,11 +301,27 @@ function Popup(): JSX.Element {
                 )}
               </button>
             </div>
-
+            {/* Summary Section with integrated TTS */}
             {summary && (
               <div className="card">
                 <div className="flex justify-between items-center mb-2">
-                  <h2 className="text-lg font-bold">Summary</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold m-0">Summary</h2>
+                    <button
+                      onClick={handleSpeakSummary}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        fontSize: "1.25rem",
+                        cursor: "pointer",
+                        color: "#6366f1",
+                      }}
+                      title="Read Aloud Summary"
+                      aria-label="Read Aloud Summary"
+                    >
+                      👄
+                    </button>
+                  </div>
                   <div className="flex gap-2">
                     <select
                       value={targetLanguage}
@@ -336,11 +353,27 @@ function Popup(): JSX.Element {
                   </div>
                 </div>
                 <p className="text-sm">{summary}</p>
+                {isSpeaking && (
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={handlePauseResumeSummarySpeech}
+                      className="btn-warning"
+                      aria-label={isPaused ? "Resume reading" : "Pause reading"}
+                    >
+                      {isPaused ? "Resume" : "Pause"}
+                    </button>
+                    <button onClick={handleStopSummarySpeech} className="btn-danger" aria-label="Stop reading">
+                      Stop
+                    </button>
+                  </div>
+                )}
               </div>
             )}
-
             {error && (
-              <div className="card" style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", borderColor: "var(--danger)" }}>
+              <div
+                className="card"
+                style={{ backgroundColor: "rgba(239, 68, 68, 0.1)", borderColor: "var(--danger)" }}
+              >
                 <p className="text-sm" style={{ color: "var(--danger)" }}>
                   {error}
                 </p>
@@ -348,94 +381,11 @@ function Popup(): JSX.Element {
             )}
           </div>
         );
-
-      case "speech":
-        return (
-          <div className="flex flex-col gap-4">
-            <div className="card">
-              <h2 className="text-lg font-bold mb-2">Text-to-Speech</h2>
-              <div className="mb-4">
-                <label className="text-sm mb-2 block">Voice</label>
-                <select
-                  value={selectedVoice}
-                  onChange={(e) => setSelectedVoice(e.target.value)}
-                  className="w-full mb-4"
-                  aria-label="Voice selection"
-                >
-                  {availableVoices.map((voice) => (
-                    <option key={voice.name} value={voice.name}>
-                      {voice.name} ({voice.lang})
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="text-sm mb-2 w-full btn-secondary"
-                  aria-expanded={showAdvancedOptions}
-                >
-                  {showAdvancedOptions ? "Hide Advanced Options" : "Show Advanced Options"}
-                </button>
-
-                {showAdvancedOptions && (
-                  <>
-                    <div className="mb-4">
-                      <div className="flex justify-between mb-2">
-                        <label className="text-sm">Speech Rate: {speechRate.toFixed(1)}x</label>
-                      </div>
-                      <input
-                        type="range"
-                        min={0.5}
-                        max={2}
-                        step={0.1}
-                        value={speechRate}
-                        onChange={(e) => setSpeechRate(Number(e.target.value))}
-                        className="w-full"
-                        aria-label="Speech rate"
-                      />
-                    </div>
-
-                    <div className="mb-4">
-                      <div className="flex justify-between mb-2">
-                        <label className="text-sm">Pitch: {speechPitch.toFixed(1)}</label>
-                      </div>
-                      <input
-                        type="range"
-                        min={0.5}
-                        max={2}
-                        step={0.1}
-                        value={speechPitch}
-                        onChange={(e) => setSpeechPitch(Number(e.target.value))}
-                        className="w-full"
-                        aria-label="Speech pitch"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-    <button onClick={handleSpeakSummary}>
-        {isSpeaking ? "Stop" : "Read Aloud Summary"}
-    </button>
-    <button onClick={handlePauseResumeSummarySpeech} disabled={!isSpeaking}>
-        {isPaused ? "Resume" : "Pause"}
-    </button>
-    <button onClick={handleStopSummarySpeech} disabled={!isSpeaking}>
-        Stop
-    </button>
-</div>
-
-            </div>
-          </div>
-        );
-
       case "settings":
         return (
           <div className="flex flex-col gap-4">
             <div className="card">
               <h2 className="text-lg font-bold mb-4">Accessibility Settings</h2>
-
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Dark Mode</label>
@@ -447,7 +397,6 @@ function Popup(): JSX.Element {
                     {isDarkMode ? "Enabled" : "Disabled"}
                   </button>
                 </div>
-
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">High Contrast Mode</label>
                   <button
@@ -460,7 +409,6 @@ function Popup(): JSX.Element {
                 </div>
               </div>
             </div>
-
             <div className="card">
               <h2 className="text-lg font-bold mb-2">About Simplif.ai</h2>
               <p className="text-sm mb-2">
@@ -470,13 +418,12 @@ function Popup(): JSX.Element {
                 <li>Text summarization at different reading levels</li>
                 <li>Translation to multiple languages</li>
                 <li>Text-to-speech functionality</li>
-                <li>Accessibility modes (Dark &amp; High Contrast)</li>
+                <li>Accessibility modes (Dark & High Contrast)</li>
               </ul>
               <p className="text-sm">Version 1.0</p>
             </div>
           </div>
         );
-
       default:
         return null;
     }
@@ -488,8 +435,6 @@ function Popup(): JSX.Element {
         <h1 className="text-2xl font-bold">Simplif.ai</h1>
         <p className="text-sm">AI-powered accessibility tool</p>
       </header>
-
-      {/* Navigation */}
       <nav className="flex border-b mb-4 gap-2">
         <button
           onClick={() => setActiveTab("summarize")}
@@ -499,13 +444,6 @@ function Popup(): JSX.Element {
           Summarize
         </button>
         <button
-          onClick={() => setActiveTab("speech")}
-          className={`py-2 px-4 ${activeTab === "speech" ? "border-b-2 border-primary font-medium" : "text-secondary"}`}
-          aria-selected={activeTab === "speech"}
-        >
-          Read Aloud
-        </button>
-        <button
           onClick={() => setActiveTab("settings")}
           className={`py-2 px-4 ${activeTab === "settings" ? "border-b-2 border-primary font-medium" : "text-secondary"}`}
           aria-selected={activeTab === "settings"}
@@ -513,13 +451,11 @@ function Popup(): JSX.Element {
           Settings
         </button>
       </nav>
-
       <main>{renderTabContent()}</main>
     </div>
   );
 }
 
-// Initialize the app
 const rootElement = document.getElementById("root");
 if (rootElement) {
   createRoot(rootElement).render(<Popup />);
