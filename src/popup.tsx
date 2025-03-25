@@ -4,11 +4,15 @@ import React, { useState, useEffect, JSX, useRef } from "react";
 import { createRoot } from "react-dom/client";
 import axios from "axios";
 
+// --- If you want to load OpenDyslexic from a CDN or local file, do so here ---
+// import "@fontsource/open-dyslexic"; // Example for an npm package
+// or a direct link, e.g.:
+// import "./open-dyslexic.css";       // If you have a local file or a different CDN
+
 // API Keys - In production, these should be secured and not exposed in client-side code
 const API_KEY =
   "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";
-const DEEPL_API_KEY =
-  "bc917a54-fb21-4706-9b99-87d15c3600db:fx";
+const DEEPL_API_KEY = "bc917a54-fb21-4706-9b99-87d15c3600db:fx";
 const OCR_API_KEY = "K84385468488957";
 
 // Supported Languages
@@ -70,7 +74,6 @@ function Popup(): JSX.Element {
 
   // Target Language (for translation)
   const [targetLanguage, setTargetLanguage] = useState<string>("EN");
-  // Create a ref for the select element so we can trigger its click when the arrow is clicked
   const selectRef = useRef<HTMLSelectElement>(null);
 
   // Paragraph count
@@ -83,8 +86,8 @@ function Popup(): JSX.Element {
   // Two tabs: Summarize & Settings
   const [activeTab, setActiveTab] = useState<ActiveTab>("summarize");
 
+  // On load, fetch paragraphs & stored openDyslexic state
   useEffect(() => {
-    // Fetch paragraphs on load
     fetchParagraphs()
       .then((paragraphs) => {
         if (paragraphs) setParagraphCount(paragraphs.length);
@@ -92,9 +95,7 @@ function Popup(): JSX.Element {
       .catch((err) => {
         console.error("Error fetching paragraphs:", err);
       });
-  }, []);
 
-  useEffect(() => {
     chrome.storage.sync.get(["openDyslexic"], (result) => {
       setIsOpenDyslexic(result.openDyslexic || false);
     });
@@ -106,6 +107,7 @@ function Popup(): JSX.Element {
     setIsOpenDyslexic(newState);
     chrome.storage.sync.set({ openDyslexic: newState });
 
+    // Also toggle the font on the actual web page, if desired
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length === 0) return;
       const tabId = tabs[0].id;
@@ -450,19 +452,7 @@ function Popup(): JSX.Element {
                   style={{ display: "block", width: "93%" }}
                 />
               </div>
-              {/* OCR Checkbox */}
-              <div className="mb-4 flex items-center">
-                <input
-                  type="checkbox"
-                  id="includeImages"
-                  checked={includeImages}
-                  onChange={(e) => setIncludeImages(e.target.checked)}
-                  className="mr-2"
-                />
-                <label htmlFor="includeImages" className="text-sm text-gray-700">
-                  Include text from images (OCR)
-                </label>
-              </div>
+
               <button
                 onClick={summarizeText}
                 disabled={isSummarizing || paragraphCount === 0 || isProcessingImages}
@@ -488,6 +478,7 @@ function Popup(): JSX.Element {
                 )}
               </button>
             </div>
+
             {/* Summary Section with integrated TTS */}
             {summary && (
               <div className="card">
@@ -509,6 +500,8 @@ function Popup(): JSX.Element {
                       🔊
                     </button>
                   </div>
+
+                  {/* Translate + Combined dropdown */}
                   <div className="flex gap-2">
                     <button
                       onClick={translateText}
@@ -525,56 +518,57 @@ function Popup(): JSX.Element {
                         "Translate"
                       )}
                     </button>
-                    {/* Custom dropdown container */}
+
                     <div style={{ position: "relative", display: "inline-block" }}>
                       <select
-                        ref={selectRef}
                         value={targetLanguage}
                         onChange={(e) => setTargetLanguage(e.target.value)}
-                        className="text-sm"
-                        aria-label="Target language"
+                        // Basic styling for your dropdown
                         style={{
-                          paddingRight: "1.5rem",
-                          appearance: "none", // hide native arrow
+                          // Hide the native dropdown arrow
+                          appearance: "none",
+                          // Make sure there's a border & padding, as desired
+                          border: "1px solid #ccc",
+                          borderRadius: "0.5rem",
+                          padding: "0.5rem 0.75rem",
+                          // Hide the selected option text in the main control
+                          color: "transparent",
+                          textShadow: "0 0 0 #000", // ensures text is visible in the open menu
+                          backgroundColor: "white", // or your background color
+                          cursor: "pointer",
                         }}
                       >
+                        {/* The dropdown options (these will show when opened) */}
                         {languages.map((lang) => (
-                          <option key={lang.code} value={lang.code}>
+                          <option
+                            key={lang.code}
+                            value={lang.code}
+                            // Force visible text color for the options
+                            style={{ color: "#000", textShadow: "none" }}
+                          >
                             {lang.name}
                           </option>
                         ))}
                       </select>
+
+                      {/* Simple downward arrow (text-based) */}
                       <span
-                        title="Select Language"
-                        onClick={() => {
-                          if (selectRef.current) {
-                            selectRef.current.focus();
-                            selectRef.current.click();
-                          }
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-700 cursor-pointer"
                         style={{
+                          position: "absolute",
+                          top: "50%",
+                          right: "0.5rem",
                           transform: "translateY(-50%)",
+                          pointerEvents: "none", // let clicks pass through to <select>
+                          fontSize: "0.75rem",
+                          color: "#333",
                         }}
                       >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                          className="h-4 w-4"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
+                        ▼
                       </span>
                     </div>
                   </div>
                 </div>
+
                 <p className="text-sm">{summary}</p>
                 {isSpeaking && (
                   <div className="flex gap-2 mt-2">
@@ -641,6 +635,34 @@ function Popup(): JSX.Element {
                     {isHighContrast ? "Enabled" : "Disabled"}
                   </button>
                 </div>
+
+                {/* OpenDyslexic Font Toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">OpenDyslexic Font</label>
+                  <button
+                    onClick={toggleOpenDyslexic}
+                    className={`px-4 py-2 rounded ${
+                      isOpenDyslexic ? "btn-primary" : "btn-secondary"
+                    }`}
+                    aria-pressed={isOpenDyslexic}
+                  >
+                    {isOpenDyslexic ? "Enabled" : "Disabled"}
+                  </button>
+                </div>
+
+                {/* OCR Toggle */}
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">OCR</label>
+                  <button
+                    onClick={() => setIncludeImages(!includeImages)}
+                    className={`px-4 py-2 rounded ${
+                      includeImages ? "btn-primary" : "btn-secondary"
+                    }`}
+                    aria-pressed={includeImages}
+                  >
+                    {includeImages ? "Enabled" : "Disabled"}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="card">
@@ -653,7 +675,7 @@ function Popup(): JSX.Element {
                 <li>Text summarization at different reading levels</li>
                 <li>Translation to multiple languages</li>
                 <li>Text-to-speech functionality</li>
-                <li>Accessibility modes (Dark & High Contrast)</li>
+                <li>Accessibility modes (Dark &amp; High Contrast)</li>
               </ul>
               <p className="text-sm">Version 1.0</p>
             </div>
@@ -664,43 +686,29 @@ function Popup(): JSX.Element {
     }
   };
 
+  // Conditionally apply OpenDyslexic font to the entire extension
+  const containerStyle: React.CSSProperties = {
+    boxSizing: "border-box",
+    width: "350px",
+    height: "500px",
+    overflowY: "auto",
+    overflowX: "hidden",
+    marginLeft: "auto",
+    marginRight: "auto",
+    padding: "0 1rem",
+    display: "flex",
+    flexDirection: "column",
+    // If isOpenDyslexic is true, apply that font to the entire popup
+    fontFamily: isOpenDyslexic ? "OpenDyslexic, Arial, sans-serif" : "inherit",
+  };
+
   return (
-    <div
-      style={{
-        boxSizing: "border-box",
-        width: "350px",
-        height: "500px",
-        overflowY: "auto",
-        overflowX: "hidden",
-        marginLeft: "auto",
-        marginRight: "auto",
-        padding: "0 1rem",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div style={containerStyle}>
       <header className="mb-4">
         <h1 className="text-2xl font-bold">Simplif.ai</h1>
         <p className="text-sm">AI-powered accessibility tool</p>
       </header>
-      <div className="p-4 w-96">
-      <h1 className="text-2xl font-bold mb-4">Simplif.ai</h1>
 
-      {/* OpenDyslexic Font Toggle */}
-      <div className="mb-4 flex items-center">
-        <input
-          type="checkbox"
-          id="openDyslexic"
-          checked={isOpenDyslexic}
-          onChange={toggleOpenDyslexic}
-          className="mr-2"
-        />
-        <label htmlFor="openDyslexic" className="text-sm text-gray-700">
-          Enable OpenDyslexic Font
-        </label>
-      </div>
-    </div>
-    
       {/* Navigation */}
       <nav className="flex border-b mb-4 gap-2">
         <button
