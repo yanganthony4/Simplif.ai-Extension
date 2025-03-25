@@ -153,5 +153,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ status: "highContrastToggled", active: isHighContrast });
   }
 
-  return true; // Indicate we'll respond asynchronously
-});
+  // Return true to indicate we'll respond asynchronously
+  return true
+})

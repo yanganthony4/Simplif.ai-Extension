@@ -17,9 +17,9 @@
     "noImplicitAny": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/": ["./src/"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src//*.ts", "src//*.tsx"],
   "exclude": ["node_modules", "dist"]
 }
