@@ -1,21 +1,20 @@
-// Make sure Chrome API is available before using it
 if (typeof chrome !== "undefined" && chrome.runtime) {
-  // Listen for installation events
   chrome.runtime.onInstalled.addListener(() => {
-    console.log("Simplif.ai installed!")
+    console.log("Simplif.ai installed!");
 
     // Initialize default settings
     chrome.storage.sync.set(
       {
         darkMode: false,
         highContrast: false,
+        openDyslexic: false, // Added this line
         readingLevel: 2,
         speechRate: 1.0,
         speechPitch: 1.0,
         selectedVoice: "en-US",
       },
       () => {
-        console.log("Default settings initialized")
+        console.log("Default settings initialized");
       },
     )
   })
@@ -37,3 +36,4 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
     return true
   })
 }
+

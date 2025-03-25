@@ -65,6 +65,9 @@ function Popup(): JSX.Element {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
 
+  // openDyslexia
+  const [isOpenDyslexic, setIsOpenDyslexic] = useState<boolean>(false);
+
   // Target Language (for translation)
   const [targetLanguage, setTargetLanguage] = useState<string>("EN");
   // Create a ref for the select element so we can trigger its click when the arrow is clicked
@@ -91,7 +94,31 @@ function Popup(): JSX.Element {
       });
   }, []);
 
-  // Load TTS voices
+  useEffect(() => {
+    chrome.storage.sync.get(["openDyslexic"], (result) => {
+      setIsOpenDyslexic(result.openDyslexic || false);
+    });
+  }, []);
+
+  // Toggle OpenDyslexic Font
+  const toggleOpenDyslexic = () => {
+    const newState = !isOpenDyslexic;
+    setIsOpenDyslexic(newState);
+    chrome.storage.sync.set({ openDyslexic: newState });
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length === 0) return;
+      const tabId = tabs[0].id;
+      if (typeof tabId !== "number") return;
+
+      chrome.tabs.sendMessage(tabId, {
+        action: "toggleOpenDyslexic",
+        enable: newState,
+      });
+    });
+  };
+
+  // Load available voices and filter by allowed languages
   useEffect(() => {
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
@@ -656,6 +683,25 @@ function Popup(): JSX.Element {
         <h1 className="text-2xl font-bold">Simplif.ai</h1>
         <p className="text-sm">AI-powered accessibility tool</p>
       </header>
+      <div className="p-4 w-96">
+      <h1 className="text-2xl font-bold mb-4">Simplif.ai</h1>
+
+      {/* OpenDyslexic Font Toggle */}
+      <div className="mb-4 flex items-center">
+        <input
+          type="checkbox"
+          id="openDyslexic"
+          checked={isOpenDyslexic}
+          onChange={toggleOpenDyslexic}
+          className="mr-2"
+        />
+        <label htmlFor="openDyslexic" className="text-sm text-gray-700">
+          Enable OpenDyslexic Font
+        </label>
+      </div>
+    </div>
+    
+      {/* Navigation */}
       <nav className="flex border-b mb-4 gap-2">
         <button
           onClick={() => setActiveTab("summarize")}

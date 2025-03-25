@@ -27,9 +27,13 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "src/content.js", to: "content.js" }, // Copies content.js to dist
+        { from: "src/content.js", to: "dist/content.js" },
+        { from: "src/background.js", to: "dist/background.js" },
+        { from: "src/styles.css", to: "dist/styles.css" }
       ],
     }),
+    
+      
   ],
   mode: "production",
 };
