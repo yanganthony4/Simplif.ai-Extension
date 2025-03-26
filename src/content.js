@@ -1,20 +1,75 @@
 // Store the original state to restore when needed
-let originalBodyClasses = "";
+let originalBodyClasses = ""
 
 // Initialize accessibility state
 document.addEventListener("DOMContentLoaded", () => {
-  originalBodyClasses = document.body.className;
+  originalBodyClasses = document.body.className
 
-  // Check if we should apply dark mode or high contrast from storage
-  chrome.storage.sync.get(["darkMode", "highContrast"], (result) => {
+  // Check if we should apply dark mode, high contrast, or OpenDyslexic from storage
+  chrome.storage.sync.get(["darkMode", "highContrast", "openDyslexic"], (result) => {
     if (result.darkMode) {
-      document.body.classList.add("dark-mode");
+      document.body.classList.add("dark-mode")
     }
     if (result.highContrast) {
-      document.body.classList.add("high-contrast-mode");
+      document.body.classList.add("high-contrast-mode")
     }
-  });
-});
+    if (result.openDyslexic) {
+      applyOpenDyslexicFont(true)
+    }
+  })
+})
+
+// Function to apply OpenDyslexic font
+function applyOpenDyslexicFont(enable) {
+  if (enable) {
+    // Inject OpenDyslexic Font from CDN if not already present
+    if (!document.getElementById("openDyslexicFont")) {
+      const fontLink = document.createElement("link")
+      fontLink.id = "openDyslexicFont"
+      fontLink.rel = "stylesheet"
+      fontLink.href = "https://fonts.cdnfonts.com/css/open-dyslexic" // Working URL
+      document.head.appendChild(fontLink)
+    }
+
+    // Inject simple CSS to apply the font to all elements
+    if (!document.getElementById("openDyslexicStyles")) {
+      const style = document.createElement("style")
+      style.id = "openDyslexicStyles"
+      style.innerHTML = `
+        * {
+          font-family: 'Open-Dyslexic', Arial, sans-serif !important;
+          font-weight: normal !important;
+        }
+        
+        /* Ensure the font is applied to dynamically created content */
+        .simplif-ai-summary, .simplif-ai-content {
+          font-family: 'Open-Dyslexic', Arial, sans-serif !important;
+        }
+      `
+      document.head.appendChild(style)
+    }
+
+    document.body.classList.add("open-dyslexic")
+  } else {
+    // Remove OpenDyslexic font and styles
+    document.body.classList.remove("open-dyslexic")
+
+    const fontLink = document.getElementById("openDyslexicFont")
+    if (fontLink) fontLink.remove()
+
+    const style = document.getElementById("openDyslexicStyles")
+    if (style) style.remove()
+
+    const resetStyle = document.createElement("style")
+    resetStyle.id = "resetFontStyles"
+    resetStyle.innerHTML = `* { font-family: initial !important; }`
+    document.head.appendChild(resetStyle)
+
+    setTimeout(() => {
+      document.getElementById("resetFontStyles")?.remove()
+    }, 100)
+  }
+}
 
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -22,137 +77,97 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "getParagraphs") {
     const paragraphs = Array.from(document.getElementsByTagName("p"))
       .map((p) => p.innerText.trim())
-      .filter((text) => text.length > 0);
+      .filter((text) => text.length > 0)
 
     // If no paragraphs found, try to get text from other elements
     if (paragraphs.length === 0) {
-      const articleContent = document.querySelector("article");
+      const articleContent = document.querySelector("article")
       if (articleContent) {
-        paragraphs.push(articleContent.innerText.trim());
+        paragraphs.push(articleContent.innerText.trim())
       } else {
-        const mainContent = document.querySelector("main");
+        const mainContent = document.querySelector("main")
         if (mainContent) {
-          paragraphs.push(mainContent.innerText.trim());
+          paragraphs.push(mainContent.innerText.trim())
         } else {
-          paragraphs.push(document.body.innerText.trim());
+          paragraphs.push(document.body.innerText.trim())
         }
       }
     }
 
-    sendResponse({ paragraphs });
+    sendResponse({ paragraphs })
   }
 
   // ✅ Toggle OpenDyslexic Font
   if (request.action === "toggleOpenDyslexic") {
-    if (request.enable) {
-      // Inject OpenDyslexic Font from CDN if not already present
-      if (!document.getElementById("openDyslexicFont")) {
-        const fontLink = document.createElement("link");
-        fontLink.id = "openDyslexicFont";
-        fontLink.rel = "stylesheet";
-        fontLink.href = "https://fonts.cdnfonts.com/css/open-dyslexic"; // ✅ Working URL
-        document.head.appendChild(fontLink);
-      }
-
-      // Inject simple CSS to apply the font to all elements
-      if (!document.getElementById("openDyslexicStyles")) {
-        const style = document.createElement("style");
-        style.id = "openDyslexicStyles";
-        style.innerHTML = `
-          * {
-            font-family: 'Open-Dyslexic' !important;
-            font-weight: normal !important;
-          }
-        `;
-        document.head.appendChild(style);
-      }
-
-      document.body.classList.add("open-dyslexic");
-    } else {
-      // Remove OpenDyslexic font and styles
-      document.body.classList.remove("open-dyslexic");
-
-      const fontLink = document.getElementById("openDyslexicFont");
-      if (fontLink) fontLink.remove();
-
-      const style = document.getElementById("openDyslexicStyles");
-      if (style) style.remove();
-
-      const resetStyle = document.createElement("style");
-      resetStyle.id = "resetFontStyles";
-      resetStyle.innerHTML = `* { font-family: initial !important; }`;
-      document.head.appendChild(resetStyle);
-
-      setTimeout(() => {
-        document.getElementById("resetFontStyles")?.remove();
-      }, 100);
-    }
+    applyOpenDyslexicFont(request.enable)
+    sendResponse({ status: "openDyslexicToggled", active: request.enable })
   }
 
   // ✅ Text-to-Speech Functionality
   if (request.action === "speakText") {
-    speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(request.text);
-    utterance.lang = request.lang || "en-US";
-    utterance.rate = request.rate || 1.0;
-    utterance.pitch = request.pitch || 1.0;
+    speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(request.text)
+    utterance.lang = request.lang || "en-US"
+    utterance.rate = request.rate || 1.0
+    utterance.pitch = request.pitch || 1.0
 
     // Add accessibility announcement
-    const announcement = new SpeechSynthesisUtterance("Starting text-to-speech");
-    announcement.volume = 0.3;
-    speechSynthesis.speak(announcement);
+    const announcement = new SpeechSynthesisUtterance("Starting text-to-speech")
+    announcement.volume = 0.3
+    speechSynthesis.speak(announcement)
 
     setTimeout(() => {
-      speechSynthesis.speak(utterance);
-    }, 500);
+      speechSynthesis.speak(utterance)
+    }, 500)
 
-    sendResponse({ status: "speaking" });
+    sendResponse({ status: "speaking" })
   }
 
   // ✅ Pause Speech
   if (request.action === "pauseSpeech") {
-    speechSynthesis.pause();
-    sendResponse({ status: "paused" });
+    speechSynthesis.pause()
+    sendResponse({ status: "paused" })
   }
 
   // ✅ Resume Speech
   if (request.action === "resumeSpeech") {
-    speechSynthesis.resume();
-    sendResponse({ status: "resumed" });
+    speechSynthesis.resume()
+    sendResponse({ status: "resumed" })
   }
 
   // ✅ Stop Speech
   if (request.action === "stopSpeech") {
-    speechSynthesis.cancel();
-    sendResponse({ status: "stopped" });
+    speechSynthesis.cancel()
+    sendResponse({ status: "stopped" })
   }
 
   // ✅ Toggle Dark Mode
   if (request.action === "toggleDarkMode") {
-    const isDarkMode = document.body.classList.toggle("dark-mode");
-    chrome.storage.sync.set({ darkMode: isDarkMode });
+    const isDarkMode = document.body.classList.toggle("dark-mode")
+    chrome.storage.sync.set({ darkMode: isDarkMode })
 
     if (isDarkMode && document.body.classList.contains("high-contrast-mode")) {
-      document.body.classList.remove("high-contrast-mode");
-      chrome.storage.sync.set({ highContrast: false });
+      document.body.classList.remove("high-contrast-mode")
+      chrome.storage.sync.set({ highContrast: false })
     }
 
-    sendResponse({ status: "darkModeToggled", active: isDarkMode });
+    sendResponse({ status: "darkModeToggled", active: isDarkMode })
   }
 
   // ✅ Toggle High Contrast Mode
   if (request.action === "toggleHighContrast") {
-    const isHighContrast = document.body.classList.toggle("high-contrast-mode");
-    chrome.storage.sync.set({ highContrast: isHighContrast });
+    const isHighContrast = document.body.classList.toggle("high-contrast-mode")
+    chrome.storage.sync.set({ highContrast: isHighContrast })
 
     if (isHighContrast && document.body.classList.contains("dark-mode")) {
-      document.body.classList.remove("dark-mode");
-      chrome.storage.sync.set({ darkMode: false });
+      document.body.classList.remove("dark-mode")
+      chrome.storage.sync.set({ darkMode: false })
     }
 
-    sendResponse({ status: "highContrastToggled", active: isHighContrast });
+    sendResponse({ status: "highContrastToggled", active: isHighContrast })
   }
 
   // Return true to indicate we'll respond asynchronously
   return true
 })
+

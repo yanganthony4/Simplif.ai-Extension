@@ -1,19 +1,14 @@
-"use client";
+"use client"
 
-import React, { useState, useEffect, JSX, useRef } from "react";
-import { createRoot } from "react-dom/client";
-import axios from "axios";
-
-// --- If you want to load OpenDyslexic from a CDN or local file, do so here ---
-// import "@fontsource/open-dyslexic"; // Example for an npm package
-// or a direct link, e.g.:
-// import "./open-dyslexic.css";       // If you have a local file or a different CDN
+import { useState, useEffect, type JSX, useRef } from "react"
+import { createRoot } from "react-dom/client"
+import axios from "axios"
 
 // API Keys - In production, these should be secured and not exposed in client-side code
 const API_KEY =
-  "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";
-const DEEPL_API_KEY = "bc917a54-fb21-4706-9b99-87d15c3600db:fx";
-const OCR_API_KEY = "K84385468488957";
+  "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"
+const DEEPL_API_KEY = "bc917a54-fb21-4706-9b99-87d15c3600db:fx"
+const OCR_API_KEY = "K84385468488957"
 
 // Supported Languages
 const languages = [
@@ -24,7 +19,7 @@ const languages = [
   { code: "ZH", name: "Chinese" },
   { code: "DE", name: "German" },
   { code: "IT", name: "Italian" },
-];
+]
 
 // Reading levels
 const readingLevels = [
@@ -43,133 +38,164 @@ const readingLevels = [
     name: "Academic",
     description: "Advanced vocabulary for scholarly content",
   },
-];
+]
 
-type ActiveTab = "summarize" | "settings";
+type ActiveTab = "summarize" | "settings"
 
 function Popup(): JSX.Element {
   // Summarization, Translation & OCR
-  const [summary, setSummary] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
-  const [isTranslating, setIsTranslating] = useState<boolean>(false);
-  const [isProcessingImages, setIsProcessingImages] = useState<boolean>(false);
+  const [summary, setSummary] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isSummarizing, setIsSummarizing] = useState<boolean>(false)
+  const [isTranslating, setIsTranslating] = useState<boolean>(false)
+  const [isProcessingImages, setIsProcessingImages] = useState<boolean>(false)
 
   // Reading Level (1–3)
-  const [readingLevel, setReadingLevel] = useState<number>(2);
+  const [readingLevel, setReadingLevel] = useState<number>(2)
 
   // OCR Toggle (Include Images)
-  const [includeImages, setIncludeImages] = useState<boolean>(true);
+  const [includeImages, setIncludeImages] = useState<boolean>(true)
 
   // TTS (integrated in Summarize)
-  const [speechRate, setSpeechRate] = useState<number>(1.0);
-  const [speechPitch, setSpeechPitch] = useState<number>(1.0);
-  const [selectedVoice, setSelectedVoice] = useState<string>("");
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [isPaused, setIsPaused] = useState<boolean>(false);
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false);
+  const [speechRate, setSpeechRate] = useState<number>(1.0)
+  const [speechPitch, setSpeechPitch] = useState<number>(1.0)
+  const [selectedVoice, setSelectedVoice] = useState<string>("")
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [isPaused, setIsPaused] = useState<boolean>(false)
+  const [isSpeaking, setIsSpeaking] = useState<boolean>(false)
 
   // openDyslexia
-  const [isOpenDyslexic, setIsOpenDyslexic] = useState<boolean>(false);
+  const [isOpenDyslexic, setIsOpenDyslexic] = useState<boolean>(false)
 
   // Target Language (for translation)
-  const [targetLanguage, setTargetLanguage] = useState<string>("EN");
-  const selectRef = useRef<HTMLSelectElement>(null);
+  const [targetLanguage, setTargetLanguage] = useState<string>("EN")
+  const selectRef = useRef<HTMLSelectElement>(null)
 
   // Paragraph count
-  const [paragraphCount, setParagraphCount] = useState<number>(0);
+  const [paragraphCount, setParagraphCount] = useState<number>(0)
 
   // Dark/Contrast modes
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
-  const [isHighContrast, setIsHighContrast] = useState<boolean>(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false)
+  const [isHighContrast, setIsHighContrast] = useState<boolean>(false)
 
   // Two tabs: Summarize & Settings
-  const [activeTab, setActiveTab] = useState<ActiveTab>("summarize");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("summarize")
 
-  // On load, fetch paragraphs & stored openDyslexic state
+  // Apply OpenDyslexic font to the popup UI immediately when the component mounts
+  useEffect(() => {
+    // Check if OpenDyslexic is enabled in storage
+    chrome.storage.sync.get(["openDyslexic"], (result) => {
+      const openDyslexicEnabled = result.openDyslexic || false
+      setIsOpenDyslexic(openDyslexicEnabled)
+
+      // Apply the font to the popup UI immediately
+      if (openDyslexicEnabled) {
+        document.body.classList.add("open-dyslexic")
+      } else {
+        document.body.classList.remove("open-dyslexic")
+      }
+    })
+  }, [])
+
+  // On load, fetch paragraphs & stored settings
   useEffect(() => {
     fetchParagraphs()
       .then((paragraphs) => {
-        if (paragraphs) setParagraphCount(paragraphs.length);
+        if (paragraphs) setParagraphCount(paragraphs.length)
       })
       .catch((err) => {
-        console.error("Error fetching paragraphs:", err);
-      });
+        console.error("Error fetching paragraphs:", err)
+      })
 
-    chrome.storage.sync.get(["openDyslexic"], (result) => {
-      setIsOpenDyslexic(result.openDyslexic || false);
-    });
-  }, []);
+    // Load settings from storage
+    chrome.storage.sync.get(["darkMode", "highContrast"], (result) => {
+      setIsDarkMode(result.darkMode || false)
+      setIsHighContrast(result.highContrast || false)
+
+      // Apply settings to the popup UI
+      if (result.darkMode) {
+        document.body.classList.add("dark-mode")
+      }
+
+      if (result.highContrast) {
+        document.body.classList.add("high-contrast-mode")
+      }
+    })
+  }, [])
 
   // Toggle OpenDyslexic Font
   const toggleOpenDyslexic = () => {
-    const newState = !isOpenDyslexic;
-    setIsOpenDyslexic(newState);
-    chrome.storage.sync.set({ openDyslexic: newState });
+    const newState = !isOpenDyslexic
+    setIsOpenDyslexic(newState)
 
-    // Also toggle the font on the actual web page, if desired
+    // Save to storage
+    chrome.storage.sync.set({ openDyslexic: newState })
+
+    // Apply to popup UI immediately
+    if (newState) {
+      document.body.classList.add("open-dyslexic")
+    } else {
+      document.body.classList.remove("open-dyslexic")
+    }
+
+    // Also toggle the font on the actual web page
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0) return;
-      const tabId = tabs[0].id;
-      if (typeof tabId !== "number") return;
+      if (tabs.length === 0 || !tabs[0].id) return
+      const tabId = tabs[0].id
 
       chrome.tabs.sendMessage(tabId, {
         action: "toggleOpenDyslexic",
         enable: newState,
-      });
-    });
-  };
+      })
+    })
+  }
 
   // Load available voices and filter by allowed languages
   useEffect(() => {
     const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      setAvailableVoices(voices);
+      const voices = window.speechSynthesis.getVoices()
+      setAvailableVoices(voices)
       if (voices.length > 0) {
-        setSelectedVoice(voices[0].name);
+        setSelectedVoice(voices[0].name)
       }
-    };
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-  }, []);
+    }
+    loadVoices()
+    window.speechSynthesis.onvoiceschanged = loadVoices
+  }, [])
 
   // Fetch paragraphs from the current page
   const fetchParagraphs = async (): Promise<string[] | null> => {
     return new Promise((resolve, reject) => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs.length === 0 || !tabs[0].id) {
-          reject("No valid tab found");
-          return;
+          reject("No valid tab found")
+          return
         }
-        const tabId = tabs[0].id ?? -1;
-        if (tabId === -1) return;
-        chrome.tabs.sendMessage(
-          tabId,
-          { action: "getParagraphs" },
-          (response: { paragraphs?: string[] }) => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError.message || "An unknown error occurred");
-              return;
-            }
-            resolve(response?.paragraphs || []);
+        const tabId = tabs[0].id ?? -1
+        if (tabId === -1) return
+        chrome.tabs.sendMessage(tabId, { action: "getParagraphs" }, (response: { paragraphs?: string[] }) => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError.message || "An unknown error occurred")
+            return
           }
-        );
-      });
-    });
-  };
+          resolve(response?.paragraphs || [])
+        })
+      })
+    })
+  }
 
   // Fetch image URLs from the active tab
   const fetchImages = async (): Promise<string[] | null> => {
     return new Promise((resolve, reject) => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs.length === 0) {
-          reject("No active tab found");
-          return;
+          reject("No active tab found")
+          return
         }
-        const tabId = tabs[0].id;
+        const tabId = tabs[0].id
         if (typeof tabId !== "number") {
-          reject("No valid tab ID found");
-          return;
+          reject("No valid tab ID found")
+          return
         }
         chrome.scripting.executeScript(
           {
@@ -177,99 +203,89 @@ function Popup(): JSX.Element {
             func: () => {
               // Find all images that might be relevant (inside article content)
               const images = Array.from(
-                document.querySelectorAll(
-                  "article img, main img, .content img, .post img, img"
-                )
-              ) as HTMLImageElement[];
+                document.querySelectorAll("article img, main img, .content img, .post img, img"),
+              ) as HTMLImageElement[]
               // Filter out small icons, avatars, etc.
               const relevantImages = images.filter((img) => {
-                const rect = img.getBoundingClientRect();
-                return rect.width > 200 && rect.height > 100;
-              });
-              return relevantImages.map((img) => img.src);
+                const rect = img.getBoundingClientRect()
+                return rect.width > 200 && rect.height > 100
+              })
+              return relevantImages.map((img) => img.src)
             },
           },
           (results) => {
             if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError.message || "An unknown error occurred");
-              return;
+              reject(chrome.runtime.lastError.message || "An unknown error occurred")
+              return
             }
             if (!results || results.length === 0) {
-              resolve([]);
-              return;
+              resolve([])
+              return
             }
-            resolve(results[0]?.result || []);
-          }
-        );
-      });
-    });
-  };
+            resolve(results[0]?.result || [])
+          },
+        )
+      })
+    })
+  }
 
   // Process images with OCR
   const processImagesWithOCR = async (imageUrls: string[]): Promise<string> => {
-    if (!imageUrls || imageUrls.length === 0) return "";
-    let ocrText = "";
-    setIsProcessingImages(true);
+    if (!imageUrls || imageUrls.length === 0) return ""
+    let ocrText = ""
+    setIsProcessingImages(true)
     try {
       // Process up to 3 images maximum
-      const imagesToProcess = imageUrls.slice(0, 3);
+      const imagesToProcess = imageUrls.slice(0, 3)
       for (const imageUrl of imagesToProcess) {
-        const formData = new FormData();
-        formData.append("apikey", OCR_API_KEY);
-        formData.append("url", imageUrl);
-        formData.append("language", "eng");
-        formData.append("isOverlayRequired", "false");
-        const response = await axios.post(
-          "https://api.ocr.space/parse/image",
-          formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          }
-        );
-        if (
-          response.data &&
-          response.data.ParsedResults &&
-          response.data.ParsedResults.length > 0
-        ) {
-          const extractedText = response.data.ParsedResults[0].ParsedText;
+        const formData = new FormData()
+        formData.append("apikey", OCR_API_KEY)
+        formData.append("url", imageUrl)
+        formData.append("language", "eng")
+        formData.append("isOverlayRequired", "false")
+        const response = await axios.post("https://api.ocr.space/parse/image", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        })
+        if (response.data && response.data.ParsedResults && response.data.ParsedResults.length > 0) {
+          const extractedText = response.data.ParsedResults[0].ParsedText
           if (extractedText && extractedText.trim().length > 0) {
-            ocrText += extractedText + "\n\n";
+            ocrText += extractedText + "\n\n"
           }
         }
       }
-      return ocrText;
+      return ocrText
     } catch (error) {
-      console.error("OCR processing failed:", error);
-      return "";
+      console.error("OCR processing failed:", error)
+      return ""
     } finally {
-      setIsProcessingImages(false);
+      setIsProcessingImages(false)
     }
-  };
+  }
 
   // Summarize text function
   const summarizeText = async (): Promise<void> => {
-    if (isSummarizing) return;
-    setIsSummarizing(true);
-    setError(null);
-    setSummary(null);
+    if (isSummarizing) return
+    setIsSummarizing(true)
+    setError(null)
+    setSummary(null)
     try {
-      const paragraphs = await fetchParagraphs();
+      const paragraphs = await fetchParagraphs()
       if (!paragraphs || paragraphs.length === 0) {
-        setError("No paragraphs found to summarize");
-        setIsSummarizing(false);
-        return;
+        setError("No paragraphs found to summarize")
+        setIsSummarizing(false)
+        return
       }
-      let text = paragraphs.join("\n");
+      let text = paragraphs.join("\n")
 
       // If OCR is enabled, process images from the page.
       if (includeImages) {
-        const imageUrls = await fetchImages();
+        const imageUrls = await fetchImages()
         if (imageUrls && imageUrls.length > 0) {
-          const ocrText = await processImagesWithOCR(imageUrls);
+          const ocrText = await processImagesWithOCR(imageUrls)
           if (ocrText) {
-            text += "\n\nText from images:\n" + ocrText;
+            text += "\n\nText from images:\n" + ocrText
           }
         }
       }
@@ -278,7 +294,7 @@ function Popup(): JSX.Element {
         `Summarize for a 4th-grade reading level: ${text}`,
         `Summarize in simple terms: ${text}`,
         `Summarize for an academic audience: ${text}`,
-      ];
+      ]
       const response = await axios.post(
         "https://api.openai.com/v1/chat/completions",
         {
@@ -290,21 +306,21 @@ function Popup(): JSX.Element {
             Authorization: `Bearer ${API_KEY}`,
             "Content-Type": "application/json",
           },
-        }
-      );
-      setSummary(response.data.choices[0].message.content);
+        },
+      )
+      setSummary(response.data.choices[0].message.content)
     } catch (err) {
-      setError("Failed to summarize text. Please check your internet connection and try again.");
+      setError("Failed to summarize text. Please check your internet connection and try again.")
     } finally {
-      setIsSummarizing(false);
+      setIsSummarizing(false)
     }
-  };
+  }
 
   // Translate text function
   const translateText = async (): Promise<void> => {
-    if (!summary || isTranslating) return;
-    setIsTranslating(true);
-    setError(null);
+    if (!summary || isTranslating) return
+    setIsTranslating(true)
+    setError(null)
     try {
       const response = await axios.post(
         "https://api-free.deepl.com/v2/translate",
@@ -314,114 +330,124 @@ function Popup(): JSX.Element {
             Authorization: `DeepL-Auth-Key ${DEEPL_API_KEY}`,
             "Content-Type": "application/json",
           },
-        }
-      );
-      setSummary(response.data.translations[0].text);
+        },
+      )
+      setSummary(response.data.translations[0].text)
     } catch (err) {
-      setError("Failed to translate text. Please check your internet connection and try again.");
+      setError("Failed to translate text. Please check your internet connection and try again.")
     } finally {
-      setIsTranslating(false);
+      setIsTranslating(false)
     }
-  };
+  }
 
   // Read the summary aloud
   const handleSpeakSummary = (): void => {
     if (!summary || summary.trim().length === 0) {
-      setError("No summary available to read aloud.");
-      return;
+      setError("No summary available to read aloud.")
+      return
     }
-    setIsSpeaking(true);
-    setIsPaused(false);
-    const voiceToUse = selectedVoice || "en-US";
+    setIsSpeaking(true)
+    setIsPaused(false)
+    const voiceToUse = selectedVoice || "en-US"
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0 || !tabs[0].id) return;
-      const tabId = tabs[0].id ?? -1;
-      if (tabId === -1) return;
+      if (tabs.length === 0 || !tabs[0].id) return
+      const tabId = tabs[0].id ?? -1
+      if (tabId === -1) return
       chrome.tabs.sendMessage(tabId, {
         action: "speakText",
         text: summary,
         voice: voiceToUse,
         rate: speechRate,
         pitch: speechPitch,
-      });
-    });
-  };
+      })
+    })
+  }
 
   // Stop reading
   const handleStopSummarySpeech = (): void => {
-    setIsSpeaking(false);
-    setIsPaused(false);
+    setIsSpeaking(false)
+    setIsPaused(false)
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0 || !tabs[0].id) return;
-      const tabId = tabs[0].id;
-      chrome.tabs.sendMessage(tabId, { action: "stopSpeech" });
-    });
-  };
+      if (tabs.length === 0 || !tabs[0].id) return
+      const tabId = tabs[0].id
+      chrome.tabs.sendMessage(tabId, { action: "stopSpeech" })
+    })
+  }
 
   // Pause/Resume reading
   const handlePauseResumeSummarySpeech = (): void => {
-    if (!isSpeaking) return;
+    if (!isSpeaking) return
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs.length === 0 || !tabs[0].id) return;
-      const tabId = tabs[0].id;
-      chrome.tabs.sendMessage(tabId, { action: isPaused ? "resumeSpeech" : "pauseSpeech" });
-      setIsPaused(!isPaused);
-    });
-  };
+      if (tabs.length === 0 || !tabs[0].id) return
+      const tabId = tabs[0].id
+      chrome.tabs.sendMessage(tabId, { action: isPaused ? "resumeSpeech" : "pauseSpeech" })
+      setIsPaused(!isPaused)
+    })
+  }
 
   // Toggle Dark Mode
   const toggleDarkMode = (): void => {
-    const newMode = !isDarkMode;
+    const newMode = !isDarkMode
     if (newMode && isHighContrast) {
-      setIsHighContrast(false);
-      document.body.classList.remove("high-contrast-mode");
+      setIsHighContrast(false)
+      document.body.classList.remove("high-contrast-mode")
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs.length && tabs[0].id) {
-          chrome.tabs.sendMessage(tabs[0].id, { action: "disableHighContrast" });
+          chrome.tabs.sendMessage(tabs[0].id, { action: "disableHighContrast" })
         }
-      });
+      })
     }
-    setIsDarkMode(newMode);
+    setIsDarkMode(newMode)
+    chrome.storage.sync.set({ darkMode: newMode })
+
+    // Apply to popup UI
+    if (newMode) {
+      document.body.classList.add("dark-mode")
+    } else {
+      document.body.classList.remove("dark-mode")
+    }
+
+    // Apply to website
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length && tabs[0].id) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: newMode ? "enableDarkMode" : "disableDarkMode",
-        });
+        })
       }
-    });
-    if (newMode) {
-      document.body.classList.add("dark-mode");
-    } else {
-      document.body.classList.remove("dark-mode");
-    }
-  };
+    })
+  }
 
   // Toggle High Contrast
   const toggleHighContrast = (): void => {
-    const newMode = !isHighContrast;
+    const newMode = !isHighContrast
     if (newMode && isDarkMode) {
-      setIsDarkMode(false);
-      document.body.classList.remove("dark-mode");
+      setIsDarkMode(false)
+      document.body.classList.remove("dark-mode")
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs.length && tabs[0].id) {
-          chrome.tabs.sendMessage(tabs[0].id, { action: "disableDarkMode" });
+          chrome.tabs.sendMessage(tabs[0].id, { action: "disableDarkMode" })
         }
-      });
+      })
     }
-    setIsHighContrast(newMode);
+    setIsHighContrast(newMode)
+    chrome.storage.sync.set({ highContrast: newMode })
+
+    // Apply to popup UI
+    if (newMode) {
+      document.body.classList.add("high-contrast-mode")
+    } else {
+      document.body.classList.remove("high-contrast-mode")
+    }
+
+    // Apply to website
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length && tabs[0].id) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: newMode ? "enableHighContrast" : "disableHighContrast",
-        });
+        })
       }
-    });
-    if (newMode) {
-      document.body.classList.add("high-contrast-mode");
-    } else {
-      document.body.classList.remove("high-contrast-mode");
-    }
-  };
+    })
+  }
 
   // Render content based on active tab
   const renderTabContent = (): JSX.Element | null => {
@@ -434,12 +460,8 @@ function Popup(): JSX.Element {
               <h2 className="text-lg font-bold mb-2">Reading Level</h2>
               <div className="mb-4">
                 <div className="flex flex-col mb-2">
-                  <span className="text-sm font-bold">
-                    {readingLevels[readingLevel - 1].name}
-                  </span>
-                  <span className="text-xs text-gray-600">
-                    {readingLevels[readingLevel - 1].description}
-                  </span>
+                  <span className="text-sm font-bold">{readingLevels[readingLevel - 1].name}</span>
+                  <span className="text-xs text-gray-600">{readingLevels[readingLevel - 1].description}</span>
                 </div>
                 <input
                   type="range"
@@ -569,7 +591,7 @@ function Popup(): JSX.Element {
                   </div>
                 </div>
 
-                <p className="text-sm">{summary}</p>
+                <p className="text-sm simplif-ai-summary">{summary}</p>
                 {isSpeaking && (
                   <div className="flex gap-2 mt-2">
                     <button
@@ -579,11 +601,7 @@ function Popup(): JSX.Element {
                     >
                       {isPaused ? "Resume" : "Pause"}
                     </button>
-                    <button
-                      onClick={handleStopSummarySpeech}
-                      className="btn-danger"
-                      aria-label="Stop reading"
-                    >
+                    <button onClick={handleStopSummarySpeech} className="btn-danger" aria-label="Stop reading">
                       Stop
                     </button>
                   </div>
@@ -604,7 +622,7 @@ function Popup(): JSX.Element {
               </div>
             )}
           </div>
-        );
+        )
       case "settings":
         return (
           <div className="flex flex-col gap-4">
@@ -615,9 +633,7 @@ function Popup(): JSX.Element {
                   <label className="text-sm font-medium">Dark Mode</label>
                   <button
                     onClick={toggleDarkMode}
-                    className={`px-4 py-2 rounded ${
-                      isDarkMode ? "btn-primary" : "btn-secondary"
-                    }`}
+                    className={`px-4 py-2 rounded ${isDarkMode ? "btn-primary" : "btn-secondary"}`}
                     aria-pressed={isDarkMode}
                   >
                     {isDarkMode ? "Enabled" : "Disabled"}
@@ -627,9 +643,7 @@ function Popup(): JSX.Element {
                   <label className="text-sm font-medium">High Contrast Mode</label>
                   <button
                     onClick={toggleHighContrast}
-                    className={`px-4 py-2 rounded ${
-                      isHighContrast ? "btn-primary" : "btn-secondary"
-                    }`}
+                    className={`px-4 py-2 rounded ${isHighContrast ? "btn-primary" : "btn-secondary"}`}
                     aria-pressed={isHighContrast}
                   >
                     {isHighContrast ? "Enabled" : "Disabled"}
@@ -641,9 +655,7 @@ function Popup(): JSX.Element {
                   <label className="text-sm font-medium">OpenDyslexic Font</label>
                   <button
                     onClick={toggleOpenDyslexic}
-                    className={`px-4 py-2 rounded ${
-                      isOpenDyslexic ? "btn-primary" : "btn-secondary"
-                    }`}
+                    className={`px-4 py-2 rounded ${isOpenDyslexic ? "btn-primary" : "btn-secondary"}`}
                     aria-pressed={isOpenDyslexic}
                   >
                     {isOpenDyslexic ? "Enabled" : "Disabled"}
@@ -655,9 +667,7 @@ function Popup(): JSX.Element {
                   <label className="text-sm font-medium">OCR</label>
                   <button
                     onClick={() => setIncludeImages(!includeImages)}
-                    className={`px-4 py-2 rounded ${
-                      includeImages ? "btn-primary" : "btn-secondary"
-                    }`}
+                    className={`px-4 py-2 rounded ${includeImages ? "btn-primary" : "btn-secondary"}`}
                     aria-pressed={includeImages}
                   >
                     {includeImages ? "Enabled" : "Disabled"}
@@ -668,8 +678,7 @@ function Popup(): JSX.Element {
             <div className="card">
               <h2 className="text-lg font-bold mb-2">About Simplif.ai</h2>
               <p className="text-sm mb-2">
-                Simplif.ai is an AI-powered accessibility tool that helps make web content more
-                accessible through:
+                Simplif.ai is an AI-powered accessibility tool that helps make web content more accessible through:
               </p>
               <ul className="text-sm list-disc pl-5 mb-2">
                 <li>Text summarization at different reading levels</li>
@@ -680,30 +689,28 @@ function Popup(): JSX.Element {
               <p className="text-sm">Version 1.0</p>
             </div>
           </div>
-        );
+        )
       default:
-        return null;
+        return null
     }
-  };
-
-  // Conditionally apply OpenDyslexic font to the entire extension
-  const containerStyle: React.CSSProperties = {
-    boxSizing: "border-box",
-    width: "350px",
-    height: "500px",
-    overflowY: "auto",
-    overflowX: "hidden",
-    marginLeft: "auto",
-    marginRight: "auto",
-    padding: "0 1rem",
-    display: "flex",
-    flexDirection: "column",
-    // If isOpenDyslexic is true, apply that font to the entire popup
-    fontFamily: isOpenDyslexic ? "OpenDyslexic, Arial, sans-serif" : "inherit",
-  };
+  }
 
   return (
-    <div style={containerStyle}>
+    <div
+      className={`${isOpenDyslexic ? "open-dyslexic" : ""}`}
+      style={{
+        boxSizing: "border-box",
+        width: "350px",
+        height: "500px",
+        overflowY: "auto",
+        overflowX: "hidden",
+        marginLeft: "auto",
+        marginRight: "auto",
+        padding: "0 1rem",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <header className="mb-4">
         <h1 className="text-2xl font-bold">Simplif.ai</h1>
         <p className="text-sm">AI-powered accessibility tool</p>
@@ -746,10 +753,11 @@ function Popup(): JSX.Element {
       </nav>
       <main>{renderTabContent()}</main>
     </div>
-  );
+  )
 }
 
-const rootElement = document.getElementById("root");
+const rootElement = document.getElementById("root")
 if (rootElement) {
-  createRoot(rootElement).render(<Popup />);
+  createRoot(rootElement).render(<Popup />)
 }
+
