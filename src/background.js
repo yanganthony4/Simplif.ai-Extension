@@ -1,6 +1,6 @@
 if (typeof chrome !== "undefined" && chrome.runtime) {
   chrome.runtime.onInstalled.addListener(() => {
-    console.log("Simplif.ai installed!");
+    console.log("Simplif.ai installed!")
 
     // Initialize default settings
     chrome.storage.sync.set(
@@ -14,7 +14,7 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
         selectedVoice: "en-US",
       },
       () => {
-        console.log("Default settings initialized");
+        console.log("Default settings initialized")
       },
     )
   })
@@ -34,6 +34,16 @@ if (typeof chrome !== "undefined" && chrome.runtime) {
 
     // Return true to indicate we'll respond asynchronously if needed
     return true
+  })
+
+  // Add this message listener to handle OpenDyslexic font toggle for the popup UI
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "getOpenDyslexicState") {
+      chrome.storage.sync.get(["openDyslexic"], (result) => {
+        sendResponse({ openDyslexic: result.openDyslexic || false })
+      })
+      return true // Required for async response
+    }
   })
 }
 
