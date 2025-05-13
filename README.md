@@ -1,16 +1,15 @@
 # Simplif-AI Extension
 
-Simplif-AI is a browser extension that improves accessibility, text summarization, translation, and UI enhancements using AI tools.
+Simplif-AI is an accessibility browser extension that improves text summarization, translation, and UI enhancements by leveraging generative AI tools.
 
 ## Features
 
-- **ChatGPT Connection:** Lets users interact with ChatGPT.
-- **openDyslexia:** Adjusts text for better readability.
-- **Translation:** Automatically translates selected text.
+- **ChatGPT Connection:** ChatGPT prompts for reading level selection - summarization.
+- **openDyslexia:** Adjusts text for better readability - dyslexic-friendly font overlay.
+- **DeepL AI:** Automatically translates summarized text.
 - **Text Grabber:** Extracts text from webpages.
+- **OCR.space** Extracts text from images and diagrams and then includes them in the summarized text
 - **Accessibility:** Adds features for easier web navigation.
-- **UI Enhancements:** Improves the design and user experience.
-- **Documentation:** Guides on how to use the extension.
 
 ---
 
@@ -38,13 +37,19 @@ Follow these steps to install the extension manually:
    npm install
 ```
 
-4. **Build the extension:**
+4. **Add API Keys:**
+Must add your own api keys in the space specified in file /popup.js!
+
+How to get OpenAI Api Key Docs: https://platform.openai.com/api-keys
+How to get DeepL Api Key Docs: https://developers.deepl.com/docs
+
+5. **Build the extension:**
 
 ```sh
    npm run build
 ```
 
-5. **Load it into Chrome:**
+6. **Load it into Chrome:**
 
 - Open `chrome://extensions/`
 - Enable **Developer mode**
@@ -73,32 +78,6 @@ Pin the extension to the browser toolbar for easy access.
    - **ChatGPT Assistant:** Helps with explanations.
 
 3. (Optional) Click the **⚙️ Settings (Cogwheel Icon)** to enable/disable specific features.
-
----
-
-## Contributing
-
-Want to contribute? Follow these steps:
-
-1. **Fork the repository.**
-2. **Create a new branch:**
-
-```sh
-   git checkout -b feature-branch
-```
-
-3. **Commit your changes:**
-
-```sh
-   git commit -m "Added new feature"
-```
-
-4. **Push and open a pull request:**
-
-```sh
-   git push origin feature-branch
-```
-
 ---
 
 ## License
@@ -133,8 +112,8 @@ SOFTWARE.
 
 ## Maintainers
 
-- **Elina** - ChatGPT & Translation
-- **Anthony** - openDyslexia, Text Grabber, API Key Management
-- **Anjhel** - UI & Security Testing
+- **Elina** - APIs - summarization & translation, OCR.space
+- **Anthony** - openDyslexia, Text Grabber
+- **Anjhel** - UI, Security Testing
 - **Sila** - Documentation
-- **Sumaiya** - Accessibility & Presentation
+- **Sumaiya** - Accessibility, Presentation
