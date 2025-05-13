@@ -1,6 +1,6 @@
-# Simplif-AI Extension
+# Simplif.Ai Extension
 
-Simplif-AI is an accessibility browser extension that improves text summarization, translation, and UI enhancements by leveraging generative AI tools.
+Simplif.Ai is an accessibility browser extension that improves text summarization, translation, and UI enhancements by leveraging generative AI tools.
 
 ## Features
 
