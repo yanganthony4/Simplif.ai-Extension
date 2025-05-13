@@ -3,9 +3,9 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 import { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import axios from "axios";
-// API Keys - In production, these should be secured and not exposed in client-side code
-const API_KEY = "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";
-const DEEPL_API_KEY = "bc917a54-fb21-4706-9b99-87d15c3600db:fx";
+// API Keys - These should be secured and not exposed in client-side code
+const API_KEY = "<YOUR API KEY HERE>";
+const DEEPL_API_KEY = "<YOUR API KEY HERE>";
 // Supported Languages
 const languages = [
     { code: "EN", name: "English" },
