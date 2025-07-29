@@ -709,6 +709,7 @@ function Popup(): JSX.Element {
         padding: "0 1rem",
         display: "flex",
         flexDirection: "column",
+        borderRadius: "var(--radius)"
       }}
     >
       <header className="mb-4">
