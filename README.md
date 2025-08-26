@@ -112,8 +112,8 @@ SOFTWARE.
 
 ## Maintainers
 
-- **Elina** - APIs - summarization & translation, OCR.space
+- **Elina** - APIs - summarization & translation, OCR.space, UI
 - **Anthony** - openDyslexia, Text Grabber
-- **Anjhel** - UI, Security Testing
+- **Anjhel** - Security Testing
 - **Sila** - Documentation
 - **Sumaiya** - Accessibility, Presentation
